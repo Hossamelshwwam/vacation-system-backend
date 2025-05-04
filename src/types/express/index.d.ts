@@ -1,9 +1,9 @@
-import { UserDocument } from "../../models/User";
+import { IUser } from "../../models/UserModel";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: UserDocument;
+      user?: IUser;
     }
   }
 }

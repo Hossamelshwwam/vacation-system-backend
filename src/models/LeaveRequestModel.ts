@@ -2,8 +2,10 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export interface ILeaveRequest extends Document {
   user: Types.ObjectId;
-  type: "hour" | "half_day" | "full_day";
+  createdBy: Types.ObjectId;
   date: Date;
+  startTime: string;
+  endTime: string;
   duration: number;
   reason: string;
   status: "pending" | "approved" | "rejected";
@@ -13,13 +15,10 @@ export interface ILeaveRequest extends Document {
 const leaveRequestSchema = new Schema<ILeaveRequest>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    type: {
-      type: String,
-      enum: ["hour", "half_day", "full_day"],
-      required: true,
-    },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    startTime: { type: String },
+    endTime: { type: String },
     date: { type: Date, required: true },
-    duration: { type: Number, required: true },
     reason: { type: String, required: true },
     status: {
       type: String,
@@ -31,4 +30,6 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
   { timestamps: true }
 );
 
-export default model<ILeaveRequest>("LeaveRequest", leaveRequestSchema);
+const LeaveModel = model<ILeaveRequest>("LeaveRequest", leaveRequestSchema);
+
+export default LeaveModel;

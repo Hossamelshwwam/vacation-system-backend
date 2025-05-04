@@ -1,11 +1,14 @@
 import express from "express";
-import { register, login } from "../controllers/authController";
+import {
+  registerController,
+  loginController,
+} from "../controllers/authController";
 import validate from "../utils/validateWithJoi";
 import { registerSchema, loginSchema } from "../validations/authValidation";
 const authRouter = express.Router();
 
 authRouter
-  .post("/auth/register", validate(registerSchema), register)
-  .post("/auth/login", validate(loginSchema), login);
+  .post("/auth/register", validate(registerSchema), registerController)
+  .post("/auth/login", validate(loginSchema), loginController);
 
 export default authRouter;

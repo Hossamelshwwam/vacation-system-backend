@@ -4,15 +4,18 @@ import mongoose from "mongoose";
 import { errorHandler, notFound } from "./middleware/errorMiddleware";
 import asyncHandler from "express-async-handler";
 import authRouter from "./routes/authRoutes";
+import leavesRouter from "./routes/leaveRoutes";
+import { messageOptions } from "./utils/globalVariables";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-const port = process.env.API_PORT || 3000;
+const port = process.env.API_PORT || 5173;
 
 app.use("/api", authRouter);
+app.use("/api", leavesRouter);
 
 app.get(
   "/test",
@@ -27,6 +30,7 @@ app.use(errorHandler);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({
+    status: messageOptions.error,
     message: err.message || "Internal Server Error",
   });
 });
