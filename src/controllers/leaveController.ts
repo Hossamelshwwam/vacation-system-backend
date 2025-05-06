@@ -258,7 +258,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
   }
 });
 
-// Accept Leave
+// Re Leave
 export const rejectLeaveController = asyncHandler(async (req, res) => {
   const { note } = req.body;
   const leaveId = req.params.id;
