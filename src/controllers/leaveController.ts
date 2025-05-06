@@ -1,7 +1,9 @@
 import asyncHandler from "express-async-handler";
 import { messageOptions } from "../utils/globalVariables";
-import UserModel from "../models/UserModel";
+import UserModel, { IUser } from "../models/UserModel";
 import LeaveModel from "../models/LeaveRequestModel";
+import { sendEmail } from "../utils/sendEmail";
+import generateUniqueCode from "../utils/generateRequest";
 
 // Create Leave
 export const createLeaveController = asyncHandler(async (req, res) => {
@@ -56,6 +58,8 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     return;
   }
 
+  const requestCode = await generateUniqueCode();
+
   const leave = await LeaveModel.create({
     user: user._id,
     createdBy: creater._id,
@@ -63,9 +67,52 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     startTime,
     endTime,
     reason,
+    requestCode,
   });
 
-  res.status(201).json({ status: messageOptions.success });
+  const managers = await UserModel.find({ role: "manager" }).select(
+    "-password -__v"
+  );
+
+  if (managers.length === 0) {
+    res.status(404).json({
+      status: messageOptions.error,
+      message: "there is no manager to accept the request",
+    });
+    return;
+  }
+
+  try {
+    await sendEmail({
+      to: managers.map((one) => one.email),
+      subject: `A request for permission was submitted by ${user.name} (${leave.requestCode}).`,
+      text: `
+      <div style="font-family: Arial, sans-serif;">
+        <h1 style="font-size: 20px;">${user.name}'s Leave Request (${
+        leave.requestCode
+      })</h1>
+        <ul style="font-size:16px;">
+          <li>name : <strong>${user.name}</strong></li>
+          <li>email : <strong>${user.email}</strong></li>
+          <li>reason : <strong>${leave.reason}</strong></li>
+          <li>date : <strong>${leave.date.toDateString()}</strong></li>
+          <li>start time : <strong>${leave.startTime}</strong></li>
+          <li>end time : <strong>${leave.endTime}</strong></li>
+        </ul>
+      </div>
+      `,
+    });
+
+    res.status(201).json({ status: messageOptions.success });
+  } catch (error) {
+    await LeaveModel.findByIdAndDelete(leave.id);
+    console.error("Error sending email:", error);
+    res.status(500).json({
+      status: messageOptions.error,
+      message: error,
+    });
+    return;
+  }
 });
 
 // Get Leaves
@@ -112,6 +159,7 @@ export const getLeavesController = asyncHandler(async (req, res) => {
 export const acceptLeaveController = asyncHandler(async (req, res) => {
   const { note } = req.body;
   const leaveId = req.params.id;
+  const user = req.user;
 
   // Check if the LeaveRequest exists
   const leave = await LeaveModel.findById(leaveId);
@@ -143,10 +191,64 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       },
     ]);
 
-    res.status(200).json({
-      status: messageOptions.success,
-      acceptedLeave: acceptLeave,
-    });
+    if (!acceptLeave) {
+      res.status(404).json({
+        status: messageOptions.error,
+        message: "Leave Request Not Found",
+      });
+      return;
+    }
+
+    const leaveUser = acceptLeave.user as unknown as IUser;
+
+    if (!leaveUser) {
+      res.status(500).json({
+        status: messageOptions.error,
+        message: "there is no leave's user",
+      });
+    }
+
+    const admins = await UserModel.find({ role: "admin" }).select(
+      "-password -__v"
+    );
+
+    if (admins.length === 0) {
+      res.status(404).json({
+        status: messageOptions.error,
+        message: "there is no manager to accept the request",
+      });
+      return;
+    }
+
+    try {
+      await sendEmail({
+        to: admins.map((one) => one.email),
+        subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
+        text: `
+        <div style="font-family: Arial, sans-serif;">
+          <p style="font-size: 16px;">The leave request of <strong>${
+            leaveUser.name
+          }</strong> has been approved by <strong>${user?.name}</strong>.</p>
+          <p><strong>Approval Date:</strong> ${acceptLeave.updatedAt.toDateString()}</p>
+        </div>
+      `,
+      });
+
+      res.status(200).json({
+        status: messageOptions.success,
+        acceptedLeave: acceptLeave,
+      });
+    } catch (error) {
+      await LeaveModel.findByIdAndUpdate(leaveId, {
+        status: leave.status,
+        note: leave.note,
+      });
+
+      res.status(500).json({
+        status: messageOptions.error,
+        message: error,
+      });
+    }
   } else {
     res.status(400).json({
       status: messageOptions.error,

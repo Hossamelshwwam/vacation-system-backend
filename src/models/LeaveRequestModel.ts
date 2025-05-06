@@ -10,6 +10,9 @@ export interface ILeaveRequest extends Document {
   reason: string;
   status: "pending" | "approved" | "rejected";
   note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  requestCode: string;
 }
 
 const leaveRequestSchema = new Schema<ILeaveRequest>(
@@ -25,6 +28,7 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    requestCode: { type: String, unique: true },
     note: { type: String },
   },
   { timestamps: true }
