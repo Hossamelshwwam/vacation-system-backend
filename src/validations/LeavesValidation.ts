@@ -15,3 +15,11 @@ export const createLeaveSchema = Joi.object({
 export const actionLeaveSchema = Joi.object({
   note: Joi.string(),
 });
+
+export const getLeavesQuerySchema = Joi.object({
+  days: Joi.number().integer().min(1).max(365).optional(),
+  email: Joi.string().email().optional(),
+  requestCode: Joi.string().max(50).optional(),
+  from: Joi.date().iso().optional(),
+  to: Joi.date().iso().optional(),
+});

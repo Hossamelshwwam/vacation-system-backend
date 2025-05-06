@@ -8,7 +8,11 @@ import { registerSchema, loginSchema } from "../validations/authValidation";
 const authRouter = express.Router();
 
 authRouter
-  .post("/auth/register", validate(registerSchema), registerController)
-  .post("/auth/login", validate(loginSchema), loginController);
+  .post(
+    "/auth/register",
+    validate({ body: registerSchema }),
+    registerController
+  )
+  .post("/auth/login", validate({ body: loginSchema }), loginController);
 
 export default authRouter;
