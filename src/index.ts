@@ -6,10 +6,13 @@ import asyncHandler from "express-async-handler";
 import authRouter from "./routes/authRoutes";
 import leavesRouter from "./routes/leaveRoutes";
 import { messageOptions } from "./utils/globalVariables";
+import cors from "cors";
+
 
 dotenv.config();
 
 const app = express();
+app.use(cors())
 app.use(express.json());
 
 const port = process.env.API_PORT || 5173;
