@@ -115,6 +115,10 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   } catch (error) {
     // If email fails, log the error but do not continue
     console.error("Error sending email:", error);
+    res.status(500).json({
+      status: messageOptions.error,
+      message: "Something wen wrong during sending the e-mails",
+    });
     return;
   }
 
@@ -161,7 +165,7 @@ export const getLeavesController = asyncHandler(async (req, res) => {
 
   // Filter by requestCode (for all roles)
   if (requestCode) {
-    query.requestCode = { $regex: requestCode, $options: "i" };
+    query.requestCode = { $regex: "^" + requestCode, $options: "i" };
   }
 
   // Filter by days (e.g., ?days=30)
