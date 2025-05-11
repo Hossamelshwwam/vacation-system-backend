@@ -25,6 +25,7 @@ app.get(
     res.json({ message: "Welcome to api" });
   })
 );
+
 app.get(
   "/test",
   asyncHandler(async (req: Request, res: Response, next) => {
