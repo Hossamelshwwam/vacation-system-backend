@@ -44,13 +44,10 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-mongoose
-  .connect(process.env.MONGODB_URL!)
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .then(() => {
-    app.listen(port, () => {
-      console.log(`Server is running on http://localhost:${port}`);
-    });
-  });
+mongoose.connect(process.env.MONGODB_URL!).then(() => {
+  console.log("Connected to MongoDB");
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
