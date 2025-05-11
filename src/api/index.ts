@@ -5,6 +5,7 @@ import { errorHandler, notFound } from "../middleware/errorMiddleware";
 import asyncHandler from "express-async-handler";
 import authRouter from "../routes/authRoutes";
 import leavesRouter from "../routes/leaveRoutes";
+import userRouter from "../routes/userRoutes";
 import { messageOptions } from "../utils/globalVariables";
 import cors from "cors";
 
@@ -18,6 +19,7 @@ const port = process.env.API_PORT || 5173;
 
 app.use("/api", authRouter);
 app.use("/api", leavesRouter);
+app.use("/api", userRouter);
 
 app.get(
   "/",

@@ -10,6 +10,10 @@ export const createLeaveSchema = Joi.object({
     .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9](am|pm)$/i)
     .required(),
   reason: Joi.string().required(),
+  priority: Joi.string()
+    .valid("normal", "urgent", "critical")
+    .default("normal")
+    .optional(),
 });
 
 export const actionLeaveSchema = Joi.object({
@@ -22,4 +26,5 @@ export const getLeavesQuerySchema = Joi.object({
   requestCode: Joi.string().max(50).optional(),
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),
+  priority: Joi.string().valid("normal", "urgent", "critical").optional(),
 });

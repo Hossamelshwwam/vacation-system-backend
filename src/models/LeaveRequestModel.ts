@@ -8,6 +8,7 @@ export interface ILeaveRequest extends Document {
   endTime: string;
   duration: number;
   reason: string;
+  priority: "normal" | "urgent" | "critical";
   status: "pending" | "approved" | "rejected";
   note?: string;
   createdAt: Date;
@@ -23,6 +24,11 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
     endTime: { type: String },
     date: { type: Date, required: true },
     reason: { type: String, required: true },
+    priority: {
+      type: String,
+      enum: ["normal", "urgent", "critical"],
+      default: "normal",
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

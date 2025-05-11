@@ -4,6 +4,7 @@ import UserModel, { IUser } from "../models/UserModel";
 import LeaveModel from "../models/LeaveRequestModel";
 import { sendEmail } from "../utils/sendEmail";
 import generateUniqueCode from "../utils/generateRequest";
+import getPriorityColor from "../utils/getPriorityColor";
 
 // Create Leave
 export const createLeaveController = asyncHandler(async (req, res) => {
@@ -18,7 +19,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { date, startTime, endTime, reason, email } = req.body;
+  const { date, startTime, endTime, reason, email, priority } = req.body;
 
   let user;
 
@@ -75,6 +76,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     startTime,
     endTime,
     reason,
+    priority: priority || "normal",
     requestCode,
   });
 
@@ -95,12 +97,19 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     // Send email notification to all managers about the leave request
     await sendEmail({
       to: managers.map((one) => one.email),
-      subject: `A request for leave was submitted by ${user.name} (${leave.requestCode}).`,
+      subject: `[${leave.priority.toUpperCase()}] Leave Request from ${
+        user.name
+      } (${leave.requestCode})`,
       text: `
       <div style="font-family: Arial, sans-serif;">
-        <h1 style="font-size: 20px;">${user.name}'s Leave Request (${
-        leave.requestCode
-      })</h1>
+        <h1 style="font-size: 20px; color: ${getPriorityColor(
+          leave.priority
+        )};">${user.name}'s Leave Request (${leave.requestCode})</h1>
+        <div style="background-color: ${getPriorityColor(
+          leave.priority
+        )}20; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+          <strong>Priority:</strong> ${leave.priority.toUpperCase()}
+        </div>
         <ul style="font-size:16px;">
           <li>name : <strong>${user.name}</strong></li>
           <li>email : <strong>${user.email}</strong></li>
@@ -117,7 +126,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     console.error("Error sending email:", error);
     res.status(500).json({
       status: messageOptions.error,
-      message: "Something wen wrong during sending the e-mails",
+      message: "Something went wrong during sending the e-mails",
     });
     return;
   }
@@ -140,7 +149,7 @@ export const getLeavesController = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { days, email, requestCode, from, to } = req.query;
+  const { days, email, requestCode, from, to, priority } = req.query;
 
   const query: any = {};
 
@@ -166,6 +175,11 @@ export const getLeavesController = asyncHandler(async (req, res) => {
   // Filter by requestCode (for all roles)
   if (requestCode) {
     query.requestCode = { $regex: "^" + requestCode, $options: "i" };
+  }
+
+  // Filter by priority
+  if (priority) {
+    query.priority = priority;
   }
 
   // Filter by days (e.g., ?days=30)
