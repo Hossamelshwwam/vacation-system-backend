@@ -4,7 +4,7 @@ import {
   createLeaveController,
   getLeavesController,
   rejectLeaveController,
-} from "../controllers/leaveController";
+} from "../controllers/leave.controller";
 import { protect, authorize } from "../middleware/authMiddleware";
 import validate from "../utils/validateWithJoi";
 import {

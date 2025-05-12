@@ -6,6 +6,7 @@ export interface IOvertime extends Document {
   startTime: string;
   endTime: string;
   projectName: string;
+  date: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +35,7 @@ const overtimeSchema = new Schema<IOvertime>(
         message: (props) => `${props.value} is not a valid time format!`,
       },
     },
+    date: { type: Date, required: true },
     projectName: { type: String, required: true },
   },
   { timestamps: true }

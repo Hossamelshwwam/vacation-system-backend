@@ -21,15 +21,20 @@ export const registerController = asyncHandler(async (req, res) => {
   }
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const user = new UserModel({
+  const newUser = new UserModel({
     name,
     email,
     password: hashedPassword,
   });
 
-  await user.save();
+  await newUser.save();
 
-  res.status(201).json({ status: messageOptions.success });
+  res
+    .status(201)
+    .json({
+      status: messageOptions.success,
+      newUser: { ...newUser.toObject(), password: undefined },
+    });
 });
 
 export const loginController = asyncHandler(async (req, res) => {

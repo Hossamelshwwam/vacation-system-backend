@@ -11,21 +11,12 @@ import { calculateDuration } from "../utils/timeLeaveManagment";
 export const createLeaveController = asyncHandler(async (req, res) => {
   let creater = req.user;
 
-  // Check if the user making the request exists
-  if (!creater) {
-    res.status(404).json({
-      status: messageOptions.error,
-      message: "User already exists",
-    });
-    return;
-  }
-
   const { date, startTime, endTime, reason, email, priority } = req.body;
 
   let user;
 
   // If the user is a manager, make sure they provide an email to create leave for another user
-  if (creater.role === "manager") {
+  if (creater?.role === "manager") {
     if (!email) {
       res.status(403).json({
         status: messageOptions.error,
@@ -49,7 +40,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   }
 
   // Check for duplicate leave requests with the same date and time
-  const existsLeaves = await LeaveModel.find({ user: user._id });
+  const existsLeaves = await LeaveModel.find({ user: user?._id });
 
   const isDuplicate = existsLeaves.some(
     (leave) =>
@@ -71,8 +62,8 @@ export const createLeaveController = asyncHandler(async (req, res) => {
 
   // Create the leave request in the database
   const leave = await LeaveModel.create({
-    user: user._id,
-    createdBy: creater._id,
+    user: user?._id,
+    createdBy: creater?._id,
     date,
     startTime,
     endTime,
@@ -99,21 +90,21 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     await sendEmail({
       to: managers.map((one) => one.email),
       subject: `[${leave.priority.toUpperCase()}] Leave Request from ${
-        user.name
+        user?.name
       } (${leave.requestCode})`,
       text: `
       <div style="font-family: Arial, sans-serif;">
         <h1 style="font-size: 20px; color: ${getPriorityColor(
           leave.priority
-        )};">${user.name}'s Leave Request (${leave.requestCode})</h1>
+        )};">${user?.name}'s Leave Request (${leave.requestCode})</h1>
         <div style="background-color: ${getPriorityColor(
           leave.priority
         )}20; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
           <strong>Priority:</strong> ${leave.priority.toUpperCase()}
         </div>
         <ul style="font-size:16px;">
-          <li>name : <strong>${user.name}</strong></li>
-          <li>email : <strong>${user.email}</strong></li>
+          <li>name : <strong>${user?.name}</strong></li>
+          <li>email : <strong>${user?.email}</strong></li>
           <li>reason : <strong>${leave.reason}</strong></li>
           <li>date : <strong>${leave.date.toDateString()}</strong></li>
           <li>start time : <strong>${leave.startTime}</strong></li>

@@ -2,7 +2,7 @@ import express from "express";
 import {
   changeUserRoleController,
   getEmployeesController,
-} from "../controllers/userController";
+} from "../controllers/user.controller";
 import validate from "../utils/validateWithJoi";
 import { changeRoleSchema } from "../validations/authValidation";
 import { protect, authorize } from "../middleware/authMiddleware";

@@ -3,11 +3,12 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { errorHandler, notFound } from "../middleware/errorMiddleware";
 import asyncHandler from "express-async-handler";
-import authRouter from "../routes/authRoutes";
-import leavesRouter from "../routes/leaveRoutes";
-import userRouter from "../routes/userRoutes";
+import authRouter from "../routes/auth.routes";
+import leavesRouter from "../routes/leave.routes";
+import userRouter from "../routes/user.routes";
 import { messageOptions } from "../utils/globalVariables";
 import cors from "cors";
+import overtimeRouter from "../routes/overtime.routes";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ const port = process.env.API_PORT || 5173;
 app.use("/api", authRouter);
 app.use("/api", leavesRouter);
 app.use("/api", userRouter);
+app.use("/api", overtimeRouter);
 
 app.get(
   "/",

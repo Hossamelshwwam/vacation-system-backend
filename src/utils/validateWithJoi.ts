@@ -28,6 +28,7 @@ const validate = ({ body, query, params }: ValidateOptions) =>
         status: "error",
         message: err.details?.[0]?.message || err.message || "Validation error",
       });
+      return;
     }
   });
 
