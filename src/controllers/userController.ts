@@ -3,6 +3,20 @@ import { messageOptions } from "../utils/globalVariables";
 import UserModel from "../models/UserModel";
 import { sendEmail } from "../utils/sendEmail";
 
+// Get All Employees
+export const getEmployeesController = asyncHandler(async (req, res) => {
+  // Get all users with role "employee"
+  const employees = await UserModel.find({ role: "employee" })
+    .select("-password -__v") // Exclude sensitive data
+    .sort({ name: 1 }); // Sort by name
+
+  res.status(200).json({
+    status: messageOptions.success,
+    count: employees.length,
+    employees,
+  });
+});
+
 // Change User Role
 export const changeUserRoleController = asyncHandler(async (req, res) => {
   const admin = req.user;
@@ -17,30 +31,15 @@ export const changeUserRoleController = asyncHandler(async (req, res) => {
     return;
   }
 
-  // Validate new role
-  if (!["employee", "manager"].includes(newRole)) {
-    res.status(400).json({
-      status: messageOptions.error,
-      message: "Invalid role. Role must be either 'employee' or 'manager'",
-    });
-    return;
-  }
-
   // Find the user to update
-  const userToUpdate = await UserModel.findOne({ email });
+  const userToUpdate = await UserModel.findOne({
+    email,
+    role: ["employee", "manager"],
+  });
   if (!userToUpdate) {
     res.status(404).json({
       status: messageOptions.error,
       message: "User not found",
-    });
-    return;
-  }
-
-  // Prevent changing admin roles
-  if (userToUpdate.role === "admin") {
-    res.status(403).json({
-      status: messageOptions.error,
-      message: "Cannot change admin roles",
     });
     return;
   }

@@ -10,6 +10,6 @@ export const errorHandler = (
 
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
   res.status(404).json({
-    message: "URL Is Not Found",
+    message: "URL Is Not Foundss",
   });
 };

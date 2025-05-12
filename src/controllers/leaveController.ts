@@ -3,8 +3,9 @@ import { messageOptions } from "../utils/globalVariables";
 import UserModel, { IUser } from "../models/UserModel";
 import LeaveModel from "../models/LeaveRequestModel";
 import { sendEmail } from "../utils/sendEmail";
-import generateUniqueCode from "../utils/generateRequest";
+import generateUniqueCode from "../utils/generateUniqueCode";
 import getPriorityColor from "../utils/getPriorityColor";
+import { calculateDuration } from "../utils/timeLeaveManagment";
 
 // Create Leave
 export const createLeaveController = asyncHandler(async (req, res) => {
@@ -66,7 +67,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   }
 
   // Generate a unique code for the leave request
-  const requestCode = await generateUniqueCode();
+  const requestCode = await generateUniqueCode(LeaveModel, "requestCode");
 
   // Create the leave request in the database
   const leave = await LeaveModel.create({
@@ -244,53 +245,55 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       },
     ]);
 
-    if (!acceptLeave) {
-      res.status(404).json({
-        status: messageOptions.error,
-        message: "Leave Request Not Found",
-      });
-      return;
-    }
+    const leaveUser = acceptLeave?.user as unknown as IUser;
 
-    const leaveUser = acceptLeave.user as unknown as IUser;
+    const updateUsertakenLimit = await UserModel.findById(leaveUser._id);
 
-    if (!leaveUser) {
+    if (!updateUsertakenLimit) {
       res.status(500).json({
         status: messageOptions.error,
         message: "there is no leave's user",
       });
+      return;
+    }
+
+    const duration = calculateDuration(leave.startTime, leave.endTime);
+
+    updateUsertakenLimit.limitOfLeave.taken += duration;
+
+    const updatedUser = await updateUsertakenLimit.save();
+
+    if (!acceptLeave) {
+      res.status(500).json({
+        status: messageOptions.error,
+        message: "there is no leave's user",
+      });
+      return;
     }
 
     const admins = await UserModel.find({ role: "admin" }).select(
       "-password -__v"
     );
 
-    // Check if there are any admins to notify
-    if (admins.length === 0) {
-      res.status(404).json({
-        status: messageOptions.error,
-        message: "there is no admin to notify",
-      });
-      return;
-    }
-
     try {
-      // Send email to all admins
-      await sendEmail({
-        to: admins.map((one) => one.email),
-        subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
-        text: `
-        <div style="font-family: Arial, sans-serif;">
-          <p style="font-size: 16px;">The leave request of <strong>${
-            leaveUser.name
-          }</strong> has been approved by <strong>${user?.name}</strong>.</p>
-          <p><strong>Approval Date:</strong> ${acceptLeave.updatedAt.toDateString()}</p>
-        </div>
-      `,
-      });
+      //  Check if there are any admins && Send email to all admins
+      if (admins.length > 0) {
+        await sendEmail({
+          to: admins.map((one) => one.email),
+          subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
+          text: `
+          <div style="font-family: Arial, sans-serif;">
+            <p style="font-size: 16px;">The leave request of <strong>${
+              leaveUser.name
+            }</strong> has been approved by <strong>${user?.name}</strong>.</p>
+            <p><strong>Approval Date:</strong> ${acceptLeave?.updatedAt.toDateString()}</p>
+          </div>
+        `,
+        });
+      }
 
       // Send email to the leave user
-      if (leaveUser?.email) {
+      if (leaveUser && leaveUser?.email) {
         await sendEmail({
           to: leaveUser.email,
           subject: `Your permission request (${leave.requestCode}) has been approved`,
@@ -300,7 +303,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
               <p style="font-size: 16px;">
                 Your leave request has been <strong>approved</strong>.
               </p>
-              <p><strong>Approval Date:</strong> ${acceptLeave.updatedAt.toDateString()}</p>
+              <p><strong>Approval Date:</strong> ${acceptLeave?.updatedAt.toDateString()}</p>
               <ul style="font-size:16px;">
                 <li>name : <strong>${leaveUser.name}</strong></li>
                 <li>email : <strong>${leaveUser.email}</strong></li>
@@ -319,7 +322,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
 
     res.status(200).json({
       status: messageOptions.success,
-      acceptedLeave: acceptLeave,
+      acceptedLeave: { ...acceptLeave.toObject(), user: updatedUser },
     });
   } else {
     res.status(400).json({

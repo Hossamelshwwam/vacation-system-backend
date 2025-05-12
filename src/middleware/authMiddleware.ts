@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
 import User from "../models/UserModel";
 import { NextFunction, Request, Response } from "express";
+import { messageOptions } from "../utils/globalVariables";
 
 export const protect = asyncHandler(async (req, res, next) => {
   const authorizationHeader = req.headers.authorization;
@@ -30,8 +31,12 @@ export const protect = asyncHandler(async (req, res, next) => {
   req.user = await User.findById(decoded.id).select("-password -__v");
 
   if (!req.user) {
-    res.status(401);
-    throw new Error("Not authorized, user not found");
+    res
+      .status(401)
+      .json({
+        status: messageOptions.error,
+        message: "Not authorized, user not found",
+      });
   }
   next();
 });
