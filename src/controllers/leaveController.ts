@@ -164,8 +164,9 @@ export const getLeavesController = asyncHandler(async (req, res) => {
     if (targetUser) {
       query.user = targetUser._id;
     } else {
-      res.status(404).json({
+      res.status(200).json({
         status: messageOptions.error,
+        leaves: [],
         message: "User with this email not found",
       });
       return;
