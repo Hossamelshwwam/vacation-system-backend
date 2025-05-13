@@ -4,9 +4,27 @@ import { sendEmail } from "../utils/sendEmail";
 import asyncHandler from "express-async-handler";
 import { messageOptions } from "../utils/globalVariables";
 import UserModel from "../models/UserModel";
+import { calculateDuration } from "../utils/timeLeaveManagment";
+import monthlyOvertimeUsageRoute from "../routes/monthlyOvertimeUsage.route";
+import MonthlyOvertimeUsageModel from "../models/MonthlyOvertimeUsageModel";
 
+// Create Overtime
 const createOvertimeController = asyncHandler(async (req, res) => {
   const { startTime, endTime, projectName, email, date } = req.body;
+
+  // check the date and start time and end time more than today
+  const checkDate = new Date(date);
+  const now = new Date();
+  const todayDate = now.toLocaleDateString("en-CA");
+  const today = new Date(todayDate);
+
+  if (checkDate > today) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Date must be in the past",
+    });
+    return;
+  }
 
   let user;
   // if the user is admin or manager, they can make overtime request for another user
@@ -45,14 +63,13 @@ const createOvertimeController = asyncHandler(async (req, res) => {
   const isDuplicate = overtimes.some(
     (overtime) =>
       new Date(overtime.date).getTime() === new Date(date).getTime() &&
-      overtime.startTime === startTime &&
-      overtime.endTime === endTime
+      (overtime.startTime === startTime || overtime.endTime === endTime)
   );
 
   if (isDuplicate) {
     res.status(400).json({
       status: messageOptions.error,
-      message: "You Already Requested This Overtime Before",
+      message: "You Already Added This Overtime Before",
     });
     return;
   }
@@ -72,12 +89,23 @@ const createOvertimeController = asyncHandler(async (req, res) => {
 
   await newOvertime.save();
 
+  const duration = calculateDuration(startTime, endTime);
+
+  const month = new Date(date).getMonth() + 1;
+  const year = new Date(date).getFullYear();
+
+  const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+    { user: user?._id, month, year },
+    { $inc: { totalOvertimeMinutes: duration } },
+    { new: true, upsert: true }
+  );
+
   const manager = await UserModel.find({ role: "manager" });
 
   const managerEmails = manager.map((manager) => manager.email);
 
   // Send email notification to user
-  if (req.user?.email) {
+  if (managerEmails.length > 0) {
     try {
       await sendEmail({
         to: managerEmails,
@@ -88,9 +116,13 @@ const createOvertimeController = asyncHandler(async (req, res) => {
         <div style="font-family: Arial, sans-serif;">
           <h1 style="margin-bottom: 10px; font-size: 20px; color:rgb(0, 119, 255); padding: 10px; background-color:rgba(0, 119, 255, 0.19); border-radius: 5px;">Overtime Request Created</h1>
           <ul style="font-size:16px;">
+            <li>Name: <strong>${
+              user?.name && user?.name[0].toUpperCase() + user?.name.slice(1)
+            }</strong></li>
+            <li>Email: <strong>${email}</strong></li>
             <li>Date: <strong>${date}</strong></li>
             <li>Start Time: <strong>${startTime}</strong></li>
-            <li>End Time: <strong>${endTime}</strong></li>
+            <li>End Time: <strong>${endTime}</strong></li>  
             <li>Project: <strong>${projectName}</strong></li>
           </ul>
         </div>
@@ -107,6 +139,7 @@ const createOvertimeController = asyncHandler(async (req, res) => {
   });
 });
 
+// Get All Overtime
 const getAllOvertimeController = asyncHandler(async (req, res) => {
   const user = req.user;
 
@@ -137,6 +170,8 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
     if (to) query.date.$lte = new Date(to as string);
   }
 
+  console.log(query, "query");
+
   let allovertimes;
 
   if (user?.role) {
@@ -146,7 +181,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
         .populate("createdBy", "name email")
         .sort({ createdAt: -1 });
     } else {
-      allovertimes = await OvertimeModel.find({ user: user?._id }, query)
+      allovertimes = await OvertimeModel.find({ user: user?._id, ...query })
         .populate("user", "name email")
         .populate("createdBy", "name email")
         .sort({ createdAt: -1 });
@@ -156,6 +191,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
   res.status(200).json({ statis: messageOptions.success, allovertimes });
 });
 
+// Update Overtime
 const updateOvertimeController = asyncHandler(async (req, res) => {
   const user = req.user;
 
@@ -231,6 +267,7 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
   }
 });
 
+// Delete Overtime
 const deleteOvertimeController = asyncHandler(async (req, res) => {
   const { overtimeId } = req.params;
   // Validate overtimeId
