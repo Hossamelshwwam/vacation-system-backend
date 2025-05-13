@@ -29,12 +29,10 @@ export const registerController = asyncHandler(async (req, res) => {
 
   await newUser.save();
 
-  res
-    .status(201)
-    .json({
-      status: messageOptions.success,
-      newUser: { ...newUser.toObject(), password: undefined },
-    });
+  res.status(201).json({
+    status: messageOptions.success,
+    newUser: { ...newUser.toObject(), password: undefined },
+  });
 });
 
 export const loginController = asyncHandler(async (req, res) => {

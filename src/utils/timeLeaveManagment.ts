@@ -1,5 +1,5 @@
 // Helper function to convert time string to minutes
-const timeToMinutes = (timeStr: string): number => {
+export const timeToMinutes = (timeStr: string): number => {
   const [time, period] = timeStr.toLowerCase().split(/(?=[ap]m)/);
   let [hours, minutes] = time.split(":").map(Number);
 

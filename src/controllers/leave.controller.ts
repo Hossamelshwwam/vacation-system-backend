@@ -5,7 +5,8 @@ import LeaveModel from "../models/LeaveRequestModel";
 import { sendEmail } from "../utils/sendEmail";
 import generateUniqueCode from "../utils/generateUniqueCode";
 import getPriorityColor from "../utils/getPriorityColor";
-import { calculateDuration } from "../utils/timeLeaveManagment";
+import { calculateDuration, timeToMinutes } from "../utils/timeLeaveManagment";
+import MonthlyLeaveUsage from "../models/MonthlyLeaveUsageModel";
 
 // Create Leave
 export const createLeaveController = asyncHandler(async (req, res) => {
@@ -13,9 +14,33 @@ export const createLeaveController = asyncHandler(async (req, res) => {
 
   const { date, startTime, endTime, reason, email, priority } = req.body;
 
-  let user;
+  if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Start Time Must Be Before End Time",
+    });
+    return;
+  }
+
+  // Check if the date is before today
+  const checkDate = new Date(date);
+  const today = new Date();
+
+  if (
+    checkDate.getFullYear() < today.getFullYear() ||
+    checkDate.getMonth() + 1 < today.getMonth() + 1 ||
+    checkDate.getDate() < today.getDate()
+  ) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "You Can't Request Leave For Date Before Today",
+    });
+    return;
+  }
 
   // If the user is a manager, make sure they provide an email to create leave for another user
+  let user;
+
   if (creater?.role === "manager") {
     if (!email) {
       res.status(403).json({
@@ -116,11 +141,6 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   } catch (error) {
     // If email fails, log the error but do not continue
     console.error("Error sending email:", error);
-    res.status(500).json({
-      status: messageOptions.error,
-      message: "Something went wrong during sending the e-mails",
-    });
-    return;
   }
 
   // Send success response with created leave request
@@ -218,7 +238,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
 
   // Check if the LeaveRequest is already accepted or Not
   if (leave.status !== "approved") {
-    const acceptLeave = await LeaveModel.findByIdAndUpdate(
+    const acceptedLeave = await LeaveModel.findByIdAndUpdate(
       leaveId,
       {
         status: "approved",
@@ -236,25 +256,27 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       },
     ]);
 
-    const leaveUser = acceptLeave?.user as unknown as IUser;
+    const leaveUser = acceptedLeave?.user as unknown as IUser;
 
-    const updateUsertakenLimit = await UserModel.findById(leaveUser._id);
+    const month = leave.date.getMonth() + 1;
+    const year = leave.date.getFullYear();
 
-    if (!updateUsertakenLimit) {
-      res.status(500).json({
-        status: messageOptions.error,
-        message: "there is no leave's user",
-      });
-      return;
-    }
+    const usage = await MonthlyLeaveUsage.findOneAndUpdate(
+      { user: leaveUser._id, month, year },
+      { $setOnInsert: { totalLimitMinutes: 240, totalUsageMinutes: 0 } },
+      { new: true, upsert: true }
+    ).populate({
+      path: "user",
+      select: "-password -__v",
+    });
 
     const duration = calculateDuration(leave.startTime, leave.endTime);
 
-    updateUsertakenLimit.limitOfLeave.taken += duration;
+    usage.totalUsageMinutes += duration;
 
-    const updatedUser = await updateUsertakenLimit.save();
+    await usage.save();
 
-    if (!acceptLeave) {
+    if (!acceptedLeave) {
       res.status(500).json({
         status: messageOptions.error,
         message: "there is no leave's user",
@@ -277,7 +299,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
             <p style="font-size: 16px;">The leave request of <strong>${
               leaveUser.name
             }</strong> has been approved by <strong>${user?.name}</strong>.</p>
-            <p><strong>Approval Date:</strong> ${acceptLeave?.updatedAt.toDateString()}</p>
+            <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
           </div>
         `,
         });
@@ -294,7 +316,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
               <p style="font-size: 16px;">
                 Your leave request has been <strong>approved</strong>.
               </p>
-              <p><strong>Approval Date:</strong> ${acceptLeave?.updatedAt.toDateString()}</p>
+              <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
               <ul style="font-size:16px;">
                 <li>name : <strong>${leaveUser.name}</strong></li>
                 <li>email : <strong>${leaveUser.email}</strong></li>
@@ -313,7 +335,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
 
     res.status(200).json({
       status: messageOptions.success,
-      acceptedLeave: { ...acceptLeave.toObject(), user: updatedUser },
+      acceptedLeave: { ...acceptedLeave.toObject(), limitleave: usage },
     });
   } else {
     res.status(400).json({
@@ -420,4 +442,177 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
     });
     return;
   }
+});
+
+// Edit Leave
+export const editLeaveController = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const leaveId = req.params.id;
+  const { date, startTime, endTime } = req.body;
+
+  if (!date && !startTime && !endTime) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "You Must Provide At Least One Field To Edit The Leave Request",
+    });
+    return;
+  }
+
+  // Check if the LeaveRequest exists
+  const leave = await LeaveModel.findById(leaveId);
+  if (!leave) {
+    res.status(404).json({
+      status: messageOptions.error,
+      message: "Leave request not found",
+    });
+    return;
+  }
+
+  const body: any = {
+    date: leave.date,
+    startTime: leave.startTime,
+    endTime: leave.endTime,
+  };
+
+  if (date) body.date = date;
+  if (startTime) body.startTime = startTime;
+  if (endTime) body.endTime = endTime;
+
+  if (timeToMinutes(body.startTime) >= timeToMinutes(body.endTime)) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Start Time Must Be Before End Time",
+    });
+    return;
+  }
+
+  // Check if user has permission to edit this leave request
+  // if (
+  //   user?.role === "employee" &&
+  //   leave.user.toString() !== user._id.toString()
+  // ) {
+  //   res.status(403).json({
+  //     status: messageOptions.error,
+  //     message: "You don't have permission to edit this leave request",
+  //   });
+  //   return;
+  // }
+
+  // Check if the date is before today
+  const checkDate = new Date(body.date);
+  const today = new Date();
+
+  if (
+    user?.role === "employee" &&
+    (checkDate.getFullYear() < today.getFullYear() ||
+      checkDate.getMonth() + 1 < today.getMonth() + 1 ||
+      checkDate.getDate() < today.getDate())
+  ) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "You Can't Request Leave For Date Before Today",
+    });
+    return;
+  }
+
+  // Check for duplicate leave requests with the same date and time
+  const existsLeaves = await LeaveModel.find({
+    user: leave.user,
+    _id: { $ne: leaveId }, // Exclude current leave request
+  });
+
+  const isDuplicate = existsLeaves.some(
+    (existingLeave) =>
+      new Date(existingLeave.date).getTime() ===
+        new Date(body.date).getTime() &&
+      existingLeave.startTime === body.startTime &&
+      existingLeave.endTime === body.endTime
+  );
+
+  if (isDuplicate) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message:
+        "You Already Have Another Leave Request With The Same Date And Time",
+    });
+    return;
+  }
+
+  let usage;
+  // If the leave request was approved, we need to update the monthly leave usage
+  if (leave.status === "approved") {
+    const oldDuration = calculateDuration(leave.startTime, leave.endTime);
+    const newDuration = calculateDuration(body.startTime, body.endTime);
+    const durationDiff = newDuration - oldDuration;
+
+    const month = new Date(body.date).getMonth() + 1;
+    const year = new Date(body.date).getFullYear();
+
+    // Update the monthly leave usage
+    usage = await MonthlyLeaveUsage.findOneAndUpdate(
+      { user: leave.user, month, year },
+      { $setOnInsert: { totalLimitMinutes: 240, totalUsageMinutes: 0 } },
+      { new: true, upsert: true }
+    );
+
+    usage.totalUsageMinutes += durationDiff;
+    await usage.save();
+  }
+
+  // Update the leave request
+  const updatedLeave = await LeaveModel.findByIdAndUpdate(leaveId, body, {
+    new: true,
+  }).populate([
+    { path: "user", select: "-password -__v" },
+    { path: "createdBy", select: "-password -__v" },
+  ]);
+
+  const leaveUser = updatedLeave?.user as unknown as IUser;
+
+  // Notify managers about the edit
+  const managers = await UserModel.find({ role: "manager" }).select(
+    "-password -__v"
+  );
+
+  if (user?.role && user?.role !== "employee" && managers.length > 0) {
+    try {
+      await sendEmail({
+        to: managers.map((one) => one.email),
+        subject: `[${leave.priority.toUpperCase()}] ${
+          leaveUser.name
+        }'s Leave Request Edited (${updatedLeave?.requestCode})`,
+        text: `
+          <div style="font-family: Arial, sans-serif;">
+            <h2>Leave Request Edited</h2>
+            <div style="background-color: ${getPriorityColor(
+              leave.priority
+            )}35; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+              <strong>Priority:</strong> ${leave.priority.toUpperCase()}
+            </div>
+            <p style="font-size:16px; ">The following leave request has been edited:</p>
+            <ul style="font-size:14px;">
+              <li>Request Code: <strong>${
+                updatedLeave?.requestCode
+              }</strong></li>
+              <li>Name: <strong>${leaveUser.name}</strong></li>
+              <li>Email: <strong>${leaveUser.email}</strong></li>
+              <li>New Date: <strong>${new Date(
+                body.date
+              ).toDateString()}</strong></li>
+              <li>New Start Time: <strong>${body.startTime}</strong></li>
+              <li>New End Time: <strong>${body.endTime}</strong></li>
+            </ul>
+          </div>
+        `,
+      });
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
+  }
+
+  res.status(200).json({
+    status: messageOptions.success,
+    updatedLeave,
+    usage,
+  });
 });

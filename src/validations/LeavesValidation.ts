@@ -28,3 +28,13 @@ export const getLeavesQuerySchema = Joi.object({
   to: Joi.date().iso().optional(),
   priority: Joi.string().valid("normal", "urgent", "critical").optional(),
 });
+
+export const editLeaveSchema = Joi.object({
+  date: Joi.date().optional(),
+  startTime: Joi.string()
+    .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9](am|pm)$/i)
+    .optional(),
+  endTime: Joi.string()
+    .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9](am|pm)$/i)
+    .optional(),
+});

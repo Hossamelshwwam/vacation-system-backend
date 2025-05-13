@@ -9,6 +9,8 @@ import userRouter from "../routes/user.routes";
 import { messageOptions } from "../utils/globalVariables";
 import cors from "cors";
 import overtimeRouter from "../routes/overtime.routes";
+import monthlyLeaveUsageRoute from "../routes/monthlyLeaveUsage.route";
+import monthlyOvertimeUsageRoute from "../routes/monthlyOvertimeUsage.route";
 
 dotenv.config();
 
@@ -18,10 +20,14 @@ app.use(express.json());
 
 const port = process.env.API_PORT || 5173;
 
-app.use("/api", authRouter);
-app.use("/api", leavesRouter);
-app.use("/api", userRouter);
-app.use("/api", overtimeRouter);
+app.use("/api", [
+  authRouter,
+  leavesRouter,
+  userRouter,
+  overtimeRouter,
+  monthlyLeaveUsageRoute,
+  monthlyOvertimeUsageRoute,
+]);
 
 app.get(
   "/",

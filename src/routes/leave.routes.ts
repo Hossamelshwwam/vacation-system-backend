@@ -2,6 +2,7 @@ import express from "express";
 import {
   acceptLeaveController,
   createLeaveController,
+  editLeaveController,
   getLeavesController,
   rejectLeaveController,
 } from "../controllers/leave.controller";
@@ -10,6 +11,7 @@ import validate from "../utils/validateWithJoi";
 import {
   actionLeaveSchema,
   createLeaveSchema,
+  editLeaveSchema,
   getLeavesQuerySchema,
 } from "../validations/LeavesValidation";
 
@@ -39,6 +41,12 @@ leavesRouter
     authorize("manager", "admin"),
     validate({ body: actionLeaveSchema }),
     rejectLeaveController
+  )
+  .patch(
+    "/leaves/edit-leave/:id",
+    authorize("admin", "employee", "manager"),
+    validate({ body: editLeaveSchema }),
+    editLeaveController
   );
 
 export default leavesRouter;
