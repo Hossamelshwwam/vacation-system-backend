@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   role: "employee" | "manager" | "admin";
   _id: string;
+  totleLeaveDuration: number;
 }
 
 const userSchema = new Schema<IUser>(
@@ -18,6 +19,7 @@ const userSchema = new Schema<IUser>(
       enum: ["employee", "manager", "admin"],
       default: "employee",
     },
+    totleLeaveDuration: { type: Number, default: 240 },
   },
   { timestamps: true }
 );

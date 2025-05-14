@@ -40,7 +40,7 @@ overtimeRouter
   .delete(
     "/overtime/deleteOvertime/:overtimeId",
     protect,
-    authorize("manager", "admin"),
+    authorize("employee", "manager", "admin"),
     deleteOvertimeController
   );
 

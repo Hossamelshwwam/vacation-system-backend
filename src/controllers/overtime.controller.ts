@@ -170,8 +170,6 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
     if (to) query.date.$lte = new Date(to as string);
   }
 
-  console.log(query, "query");
-
   let allovertimes;
 
   if (user?.role) {
@@ -217,6 +215,21 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
     return;
   }
 
+  // Check if the date is in the past
+  if (date) {
+    const now = new Date();
+    const checkDate = new Date(date);
+    const today = new Date(now.toLocaleDateString("en-CA"));
+    if (checkDate > today) {
+      res.status(400).json({
+        status: messageOptions.error,
+        message: "Date must be in the past",
+      });
+      return;
+    }
+  }
+
+  // Check if the user is admin or manager or the user is the same as the overtime user
   if (
     user?.role &&
     (["admin", "manager"].includes(user?.role) ||
@@ -243,6 +256,83 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
           message: "An overtime request with these details already exists",
         });
         return;
+      }
+    }
+
+    let oldDuration = {
+      startTime: overtime.startTime,
+      endTime: overtime.endTime,
+    };
+
+    const oldDurationBalence = calculateDuration(
+      oldDuration.startTime,
+      oldDuration.endTime
+    );
+
+    let newDuration = {
+      startTime: overtime.startTime,
+      endTime: overtime.endTime,
+    };
+
+    // Check if the start time is provided
+    if (startTime) newDuration.startTime = startTime;
+
+    // Check if the end time is provided
+    if (endTime) newDuration.endTime = endTime;
+
+    const newDurationBalence = calculateDuration(
+      newDuration.startTime,
+      newDuration.endTime
+    );
+
+    const lastDate = new Date(overtime.date);
+    const lastMonth = lastDate.getMonth() + 1;
+    const lastYear = lastDate.getFullYear();
+
+    // Check if the month of the new date not equal the last date month
+    if (date) {
+      const newDate = new Date(date);
+      const newMonth = newDate.getMonth() + 1;
+      const newYear = newDate.getFullYear();
+      if (newDate.getMonth() + 1 !== lastDate.getMonth() + 1) {
+        const [lastUsageOvertime, newUsageOvertime] = await Promise.all([
+          MonthlyOvertimeUsageModel.findOneAndUpdate(
+            {
+              user: user?._id,
+              month: lastMonth,
+              year: lastYear,
+            },
+            {
+              $inc: { totalOvertimeMinutes: -oldDurationBalence },
+            }
+          ),
+          MonthlyOvertimeUsageModel.findOneAndUpdate(
+            {
+              user: user?._id,
+              month: newMonth,
+              year: newYear,
+            },
+            {
+              $inc: { totalOvertimeMinutes: newDurationBalence },
+            },
+            { new: true, upsert: true }
+          ),
+        ]);
+      }
+    } else {
+      if (newDurationBalence !== oldDurationBalence) {
+        const usageOvertime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+          {
+            user: user?._id,
+            month: lastMonth,
+            year: lastYear,
+          },
+          {
+            $inc: {
+              totalOvertimeMinutes: newDurationBalence - oldDurationBalence,
+            },
+          }
+        );
       }
     }
 
@@ -288,6 +378,27 @@ const deleteOvertimeController = asyncHandler(async (req, res) => {
     });
     return;
   }
+
+  const lastDate = new Date(deleteOvertime.date);
+  const lastMonth = lastDate.getMonth() + 1;
+  const lastYear = lastDate.getFullYear();
+
+  const duration = calculateDuration(
+    deleteOvertime.startTime,
+    deleteOvertime.endTime
+  );
+
+  const usageOvertime = await MonthlyOvertimeUsageModel.findOne({
+    user: deleteOvertime.user._id,
+    month: lastMonth,
+    year: lastYear,
+  });
+
+  if (usageOvertime) {
+    usageOvertime.totalOvertimeMinutes -= duration;
+    await usageOvertime.save();
+  }
+
   res.status(200).json({
     status: messageOptions.success,
     deletedOvertime: deleteOvertime,

@@ -35,7 +35,12 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     query.month = month;
     const monthlyLeaveUsage = await MonthlyLeaveUsageModel.findOneAndUpdate(
       query,
-      { $setOnInsert: { totalLimitMinutes: 240, totalUsageMinutes: 0 } },
+      {
+        $setOnInsert: {
+          totalLimitMinutes: query.user.totalLimitMinutes,
+          totalUsageMinutes: 0,
+        },
+      },
       { new: true, upsert: true }
     ).select("-user -__v");
 
@@ -54,7 +59,7 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
           user: query.user,
           year,
           month: (i + 1).toString(),
-          totalLimitMinutes: 240,
+          totalLimitMinutes: query.user.totleLeaveDuration,
           totalUsageMinutes: 0,
         },
       },
