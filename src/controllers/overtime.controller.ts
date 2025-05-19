@@ -174,7 +174,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
 
   if (user?.role) {
     if (["admin", "manager"].includes(user?.role)) {
-      allovertimes = await OvertimeModel.find(query)
+      allovertimes = await OvertimeModel.find(query, {})
         .populate("user", "name email")
         .populate("createdBy", "name email")
         .sort({ createdAt: -1 });
