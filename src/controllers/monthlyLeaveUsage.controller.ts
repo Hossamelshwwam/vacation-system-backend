@@ -19,7 +19,7 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
         });
         return;
       }
-      query.user = checkedUser.id;
+      query.user = checkedUser;
     } else {
       res.status(400).json({
         status: messageOptions.error,
@@ -28,13 +28,13 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
       return;
     }
   } else {
-    query.user = user?.id;
+    query.user = user;
   }
 
   if (month) {
     query.month = month;
     const monthlyLeaveUsage = await MonthlyLeaveUsageModel.findOneAndUpdate(
-      query,
+      { ...query, user: query.user.id },
       {
         $setOnInsert: {
           totalLimitMinutes: query.user.totalLimitMinutes,
@@ -51,12 +51,14 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     return;
   }
 
+  console.log(query.user.totleLeaveDuration);
+
   const months = Array.from({ length: 12 }, (_, i) => ({
     updateOne: {
-      filter: { user: query.user, year, month: i + 1 },
+      filter: { user: query.user.id, year, month: i + 1 },
       update: {
         $setOnInsert: {
-          user: query.user,
+          user: query.user.id,
           year,
           month: (i + 1).toString(),
           totalLimitMinutes: query.user.totleLeaveDuration,
@@ -71,7 +73,10 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     await MonthlyLeaveUsageModel.bulkWrite(months);
   }
 
-  const usageList = await MonthlyLeaveUsageModel.find(query)
+  const usageList = await MonthlyLeaveUsageModel.find({
+    ...query,
+    user: query.user.id,
+  })
     .select("month year totalLimitMinutes totalUsageMinutes")
     .sort({ month: 1 })
     .lean();

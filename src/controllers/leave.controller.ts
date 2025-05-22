@@ -238,84 +238,96 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
   }
 
   // Check if the LeaveRequest is already accepted or Not
-  if (leave.status !== "approved") {
-    const acceptedLeave = await LeaveModel.findByIdAndUpdate(
-      leaveId,
-      {
-        status: "approved",
-        note,
+  if (leave.status === "approved") {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Leave request already accepted",
+    });
+    return;
+  }
+
+  const acceptedLeave = await LeaveModel.findByIdAndUpdate(
+    leaveId,
+    {
+      status: "approved",
+      note,
+    },
+    { new: true }
+  ).populate([
+    {
+      path: "user",
+      select: "-password -__v", // Exclude sensitive data like password
+    },
+    {
+      path: "createdBy",
+      select: "-password -__v", // Exclude sensitive data like password
+    },
+  ]);
+
+  const leaveUser = acceptedLeave?.user as unknown as IUser;
+
+  const month = leave.date.getMonth() + 1;
+  const year = leave.date.getFullYear();
+
+  const totalLeaveDuration = calculateDuration(leave.startTime, leave.endTime);
+
+  const usage = await MonthlyLeaveUsage.findOneAndUpdate(
+    { user: leaveUser._id, month, year },
+    {
+      $setOnInsert: {
+        totalLimitMinutes: leaveUser.totleLeaveDuration,
+        totalUsageMinutes: 0,
       },
-      { new: true }
-    ).populate([
-      {
-        path: "user",
-        select: "-password -__v", // Exclude sensitive data like password
-      },
-      {
-        path: "createdBy",
-        select: "-password -__v", // Exclude sensitive data like password
-      },
-    ]);
+    },
+    { new: true, upsert: true }
+  ).populate({
+    path: "user",
+    select: "-password -__v",
+  });
 
-    const leaveUser = acceptedLeave?.user as unknown as IUser;
+  const beforeTotleUsage = usage.totalUsageMinutes;
 
-    const month = leave.date.getMonth() + 1;
-    const year = leave.date.getFullYear();
+  usage.totalUsageMinutes += totalLeaveDuration;
+  await usage.save();
 
-    const totalLeaveDuration = calculateDuration(
-      leave.startTime,
-      leave.endTime
-    );
-
-    const usage = await MonthlyLeaveUsage.findOneAndUpdate(
+  if (usage.totalUsageMinutes > usage.totalLimitMinutes) {
+    const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
       { user: leaveUser._id, month, year },
       {
-        $setOnInsert: {
-          totalLimitMinutes: totalLeaveDuration,
-        },
-        $inc: {
-          totalUsageMinutes: totalLeaveDuration,
-        },
+        $setOnInsert: { totalOvertimeMinutes: 0 },
       },
       { new: true, upsert: true }
-    ).populate({
-      path: "user",
-      select: "-password -__v",
-    });
-
-    if (usage.totalUsageMinutes > usage.totalLimitMinutes) {
-      const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
-        { user: leaveUser._id, month, year },
-        {
-          $setOnInsert: { totalOvertimeMinutes: 0 },
-        },
-        { new: true, upsert: true }
-      );
-
-      overtimeUsage.totalOvertimeMinutes -= totalLeaveDuration;
-
-      await overtimeUsage.save();
-    }
-
-    if (!acceptedLeave) {
-      res.status(500).json({
-        status: messageOptions.error,
-        message: "there is no leave's user",
-      });
-      return;
-    }
-
-    const admins = await UserModel.find({ role: "admin" }).select(
-      "-password -__v"
     );
 
-    try {
-      //  Check if there are any admins && Send email to all admins
-      if (admins.length > 0) {
-        await sendEmail({
-          to: admins.map((one) => one.email),
-          subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
-          text: `
+    if (beforeTotleUsage > usage.totalLimitMinutes) {
+      overtimeUsage.totalOvertimeMinutes -= leaveUser.totleLeaveDuration;
+    } else {
+      overtimeUsage.totalOvertimeMinutes -=
+        usage.totalLimitMinutes - usage.totalUsageMinutes;
+    }
+
+    await overtimeUsage.save();
+  }
+
+  if (!acceptedLeave) {
+    res.status(500).json({
+      status: messageOptions.error,
+      message: "there is no leave's user",
+    });
+    return;
+  }
+
+  const admins = await UserModel.find({ role: "admin" }).select(
+    "-password -__v"
+  );
+
+  try {
+    //  Check if there are any admins && Send email to all admins
+    if (admins.length > 0) {
+      await sendEmail({
+        to: admins.map((one) => one.email),
+        subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
+        text: `
           <div style="font-family: Arial, sans-serif;">
             <p style="font-size: 16px;">The leave request of <strong>${
               leaveUser.name
@@ -323,15 +335,15 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
             <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
           </div>
         `,
-        });
-      }
+      });
+    }
 
-      // Send email to the leave user
-      if (leaveUser && leaveUser?.email) {
-        await sendEmail({
-          to: leaveUser.email,
-          subject: `Your permission request (${leave.requestCode}) has been approved`,
-          text: `
+    // Send email to the leave user
+    if (leaveUser && leaveUser?.email) {
+      await sendEmail({
+        to: leaveUser.email,
+        subject: `Your permission request (${leave.requestCode}) has been approved`,
+        text: `
             <div style="font-family: Arial, sans-serif;">  
               <p style="font-size: 16px;">Dear ${leaveUser.name},</p>
               <p style="font-size: 16px;">
@@ -348,23 +360,16 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
               </ul>
             </div>
           `,
-        });
-      }
-    } catch (error) {
-      console.log(`Error : ${error}`);
+      });
     }
-
-    res.status(200).json({
-      status: messageOptions.success,
-      acceptedLeave,
-    });
-  } else {
-    res.status(400).json({
-      status: messageOptions.error,
-      message: "Leave request already accepted",
-    });
-    return;
+  } catch (error) {
+    console.log(`Error : ${error}`);
   }
+
+  res.status(200).json({
+    status: messageOptions.success,
+    acceptedLeave,
+  });
 });
 
 // Reject Leave
@@ -391,41 +396,108 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
   }
 
   // Check if the LeaveRequest is already rejected or Not
-  if (leave.status !== "rejected") {
-    const rejectLeave = await LeaveModel.findByIdAndUpdate(
-      leaveId,
-      {
-        status: "rejected",
-        note,
-      },
-      { new: true }
-    ).populate([
-      {
-        path: "user",
-        select: "-password -__v", // Exclude sensitive data like password
-      },
-      {
-        path: "createdBy",
-        select: "-password -__v", // Exclude sensitive data like password
-      },
-    ]);
+  if (leave.status === "rejected") {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Leave request already rejected",
+    });
+    return;
+  }
 
-    try {
-      const leaveUser = rejectLeave?.user as unknown as IUser;
+  const rejectLeave = await LeaveModel.findByIdAndUpdate(
+    leaveId,
+    {
+      status: "rejected",
+      note,
+    },
+    { new: true }
+  ).populate([
+    {
+      path: "user",
+      select: "-password -__v", // Exclude sensitive data like password
+    },
+    {
+      path: "createdBy",
+      select: "-password -__v", // Exclude sensitive data like password
+    },
+  ]);
 
-      if (!leaveUser) {
-        res.status(500).json({
-          status: messageOptions.error,
-          message: "there is no leave's user",
-        });
-      }
+  // usage diference
+  const usageLeave = await MonthlyLeaveUsage.findOne({
+    user: leave?.user,
+    month: leave?.date.getMonth() + 1,
+    year: leave?.date.getFullYear(),
+  });
 
-      // Send rejection email to the leave user
-      if (leaveUser?.email) {
-        await sendEmail({
-          to: leaveUser.email,
-          subject: `Your permission request (${leave.requestCode}) has been rejected`,
-          text: `
+  if (!usageLeave) {
+    res.status(500).json({
+      status: messageOptions.error,
+      message: "there is no leave's user",
+    });
+    return;
+  }
+
+  const rejectedDuration = calculateDuration(leave.startTime, leave.endTime);
+
+  // Check if the usage is more than the limit
+  if (
+    leave.status === "approved" &&
+    usageLeave.totalUsageMinutes > usageLeave.totalLimitMinutes
+  ) {
+    usageLeave.totalUsageMinutes -= rejectedDuration;
+    const durationDifference =
+      usageLeave.totalLimitMinutes - usageLeave.totalUsageMinutes;
+
+    // If the duration difference is more than 0, add the difference to the overtime usage
+    if (durationDifference > 0) {
+      const increaseOvertime = rejectedDuration - durationDifference;
+      await MonthlyOvertimeUsageModel.findOneAndUpdate(
+        {
+          user: leave?.user,
+          month: leave?.date.getMonth() + 1,
+          year: leave?.date.getFullYear(),
+        },
+        {
+          $inc: { totalOvertimeMinutes: increaseOvertime },
+        },
+        { new: true }
+      );
+    } else {
+      // If the duration difference is 0, add the rejected duration to the overtime usage
+      await MonthlyOvertimeUsageModel.findOneAndUpdate(
+        {
+          user: leave?.user,
+          month: leave?.date.getMonth() + 1,
+          year: leave?.date.getFullYear(),
+        },
+        {
+          $inc: { totalOvertimeMinutes: rejectedDuration },
+        },
+        { new: true }
+      );
+    }
+  } else {
+    usageLeave.totalUsageMinutes -= rejectedDuration;
+  }
+
+  await usageLeave.save();
+
+  try {
+    const leaveUser = rejectLeave?.user as unknown as IUser;
+
+    if (!leaveUser) {
+      res.status(500).json({
+        status: messageOptions.error,
+        message: "there is no leave's user",
+      });
+    }
+
+    // Send rejection email to the leave user
+    if (leaveUser?.email) {
+      await sendEmail({
+        to: leaveUser.email,
+        subject: `Your permission request (${leave.requestCode}) has been rejected`,
+        text: `
             <div style="font-family: Arial, sans-serif;">
               <p style="font-size: 16px;">Dear ${leaveUser.name},</p>
               <p style="font-size: 16px;">
@@ -442,23 +514,16 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
               </ul>
             </div>
           `,
-        });
-      }
-    } catch (error) {
-      console.log(`Error : ${error}`);
+      });
     }
-
-    res.status(200).json({
-      status: messageOptions.success,
-      rejectedLeave: rejectLeave,
-    });
-  } else {
-    res.status(400).json({
-      status: messageOptions.error,
-      message: "Leave request already rejected",
-    });
-    return;
+  } catch (error) {
+    console.log(`Error : ${error}`);
   }
+
+  res.status(200).json({
+    status: messageOptions.success,
+    rejectedLeave: rejectLeave,
+  });
 });
 
 // Edit Leave
