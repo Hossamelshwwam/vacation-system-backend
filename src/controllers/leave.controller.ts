@@ -290,6 +290,7 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
   usage.totalUsageMinutes += totalLeaveDuration;
   await usage.save();
 
+  // if the total usage more than the limit
   if (usage.totalUsageMinutes > usage.totalLimitMinutes) {
     const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
       { user: leaveUser._id, month, year },
@@ -299,10 +300,15 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       { new: true, upsert: true }
     );
 
+    console.log(`beforeTotleUsage: ${beforeTotleUsage}`);
+    console.log(`totalLimitMinutes: ${usage.totalLimitMinutes}`);
+
+    // the usage before the leave request accepted more than the limit we will decrease all leave duration from overtime usage
     if (beforeTotleUsage > usage.totalLimitMinutes) {
       overtimeUsage.totalOvertimeMinutes -= leaveUser.totleLeaveDuration;
     } else {
-      overtimeUsage.totalOvertimeMinutes -=
+      // if else we will minus the updated total usage minutes from the limit
+      overtimeUsage.totalOvertimeMinutes =
         usage.totalLimitMinutes - usage.totalUsageMinutes;
     }
 
@@ -458,7 +464,7 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
           year: leave?.date.getFullYear(),
         },
         {
-          $inc: { totalOvertimeMinutes: increaseOvertime },
+          $inc: { totalOvertimeMinutes: -increaseOvertime },
         },
         { new: true }
       );
@@ -471,7 +477,7 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
           year: leave?.date.getFullYear(),
         },
         {
-          $inc: { totalOvertimeMinutes: rejectedDuration },
+          $inc: { totalOvertimeMinutes: -rejectedDuration },
         },
         { new: true }
       );
