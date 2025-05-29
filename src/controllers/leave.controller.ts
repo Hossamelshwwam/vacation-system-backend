@@ -285,14 +285,17 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
     select: "-password -__v",
   });
 
-  const beforeTotleUsage = usage.totalUsageMinutes;
-
   usage.totalUsageMinutes += totalLeaveDuration;
-  await usage.save();
 
-  // if the total usage more than the limit
+  // Check if the usage is more than the limit
   if (usage.totalUsageMinutes > usage.totalLimitMinutes) {
-    const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+    const overUsageMinutes = usage.totalUsageMinutes - usage.totalLimitMinutes;
+    // Update the total over usage minutes
+    if (usage.totalOverUsageMinutes !== overUsageMinutes) {
+      usage.totalOverUsageMinutes = overUsageMinutes;
+    }
+
+    const overtime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
       { user: leaveUser._id, month, year },
       {
         $setOnInsert: { totalOvertimeMinutes: 0 },
@@ -300,20 +303,15 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       { new: true, upsert: true }
     );
 
-    console.log(`beforeTotleUsage: ${beforeTotleUsage}`);
-    console.log(`totalLimitMinutes: ${usage.totalLimitMinutes}`);
-
-    // the usage before the leave request accepted more than the limit we will decrease all leave duration from overtime usage
-    if (beforeTotleUsage > usage.totalLimitMinutes) {
-      overtimeUsage.totalOvertimeMinutes -= leaveUser.totleLeaveDuration;
-    } else {
-      // if else we will minus the updated total usage minutes from the limit
-      overtimeUsage.totalOvertimeMinutes =
-        usage.totalLimitMinutes - usage.totalUsageMinutes;
+    // Increase the total over usage minutes
+    if (overtime.totalOvertimeMinutes !== overUsageMinutes) {
+      overtime.totalOverUsageMinutes = overUsageMinutes;
     }
 
-    await overtimeUsage.save();
+    await overtime.save();
   }
+
+  await usage.save();
 
   if (!acceptedLeave) {
     res.status(500).json({
@@ -428,69 +426,65 @@ export const rejectLeaveController = asyncHandler(async (req, res) => {
     },
   ]);
 
-  // usage diference
-  const usageLeave = await MonthlyLeaveUsage.findOne({
-    user: leave?.user,
-    month: leave?.date.getMonth() + 1,
-    year: leave?.date.getFullYear(),
-  });
+  const leaveUser = rejectLeave?.user as unknown as IUser;
 
-  if (!usageLeave) {
-    res.status(500).json({
-      status: messageOptions.error,
-      message: "there is no leave's user",
+  if (leave.status === "approved") {
+    const month = leave.date.getMonth() + 1;
+    const year = leave.date.getFullYear();
+
+    const totalLeaveDuration = calculateDuration(
+      leave.startTime,
+      leave.endTime
+    );
+
+    const usageLeave = await MonthlyLeaveUsage.findOneAndUpdate(
+      { user: leaveUser._id, month, year },
+      {
+        $setOnInsert: {
+          totalLimitMinutes: leaveUser.totleLeaveDuration,
+          totalUsageMinutes: 0,
+        },
+      },
+      { new: true, upsert: true }
+    ).populate({
+      path: "user",
+      select: "-password -__v",
     });
-    return;
-  }
 
-  const rejectedDuration = calculateDuration(leave.startTime, leave.endTime);
+    usageLeave.totalUsageMinutes -= totalLeaveDuration;
 
-  // Check if the usage is more than the limit
-  if (
-    leave.status === "approved" &&
-    usageLeave.totalUsageMinutes > usageLeave.totalLimitMinutes
-  ) {
-    usageLeave.totalUsageMinutes -= rejectedDuration;
-    const durationDifference =
-      usageLeave.totalLimitMinutes - usageLeave.totalUsageMinutes;
+    const overUsageMinutes =
+      usageLeave.totalUsageMinutes - usageLeave.totalLimitMinutes;
 
-    // If the duration difference is more than 0, add the difference to the overtime usage
-    if (durationDifference > 0) {
-      const increaseOvertime = rejectedDuration - durationDifference;
-      await MonthlyOvertimeUsageModel.findOneAndUpdate(
-        {
-          user: leave?.user,
-          month: leave?.date.getMonth() + 1,
-          year: leave?.date.getFullYear(),
-        },
-        {
-          $inc: { totalOvertimeMinutes: -increaseOvertime },
-        },
-        { new: true }
-      );
-    } else {
-      // If the duration difference is 0, add the rejected duration to the overtime usage
-      await MonthlyOvertimeUsageModel.findOneAndUpdate(
-        {
-          user: leave?.user,
-          month: leave?.date.getMonth() + 1,
-          year: leave?.date.getFullYear(),
-        },
-        {
-          $inc: { totalOvertimeMinutes: -rejectedDuration },
-        },
-        { new: true }
-      );
+    if (usageLeave.totalOverUsageMinutes > 0) {
+      if (overUsageMinutes <= 0) {
+        usageLeave.totalOverUsageMinutes = 0;
+      } else {
+        usageLeave.totalOverUsageMinutes = overUsageMinutes;
+      }
     }
-  } else {
-    usageLeave.totalUsageMinutes -= rejectedDuration;
-  }
 
-  await usageLeave.save();
+    const overtime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+      { user: leaveUser._id, month, year },
+      {
+        $setOnInsert: { totalOvertimeMinutes: 0 },
+      },
+      { new: true, upsert: true }
+    );
+
+    if (overtime.totalOverUsageMinutes > 0) {
+      if (overUsageMinutes <= 0) {
+        overtime.totalOverUsageMinutes = 0;
+      } else {
+        overtime.totalOverUsageMinutes = overUsageMinutes;
+      }
+      await overtime.save();
+    }
+
+    await usageLeave.save();
+  }
 
   try {
-    const leaveUser = rejectLeave?.user as unknown as IUser;
-
     if (!leaveUser) {
       res.status(500).json({
         status: messageOptions.error,
@@ -574,18 +568,6 @@ export const editLeaveController = asyncHandler(async (req, res) => {
     return;
   }
 
-  // Check if user has permission to edit this leave request
-  // if (
-  //   user?.role === "employee" &&
-  //   leave.user.toString() !== user._id.toString()
-  // ) {
-  //   res.status(403).json({
-  //     status: messageOptions.error,
-  //     message: "You don't have permission to edit this leave request",
-  //   });
-  //   return;
-  // }
-
   // Check if the date is before today
   const checkDate = new Date(body.date);
   const today = new Date();
@@ -626,27 +608,6 @@ export const editLeaveController = asyncHandler(async (req, res) => {
     return;
   }
 
-  let usage;
-  // If the leave request was approved, we need to update the monthly leave usage
-  if (leave.status === "approved") {
-    const oldDuration = calculateDuration(leave.startTime, leave.endTime);
-    const newDuration = calculateDuration(body.startTime, body.endTime);
-    const durationDiff = newDuration - oldDuration;
-
-    const month = new Date(body.date).getMonth() + 1;
-    const year = new Date(body.date).getFullYear();
-
-    // Update the monthly leave usage
-    usage = await MonthlyLeaveUsage.findOneAndUpdate(
-      { user: leave.user, month, year },
-      { $setOnInsert: { totalLimitMinutes: 240, totalUsageMinutes: 0 } },
-      { new: true, upsert: true }
-    );
-
-    usage.totalUsageMinutes += durationDiff;
-    await usage.save();
-  }
-
   // Update the leave request
   const updatedLeave = await LeaveModel.findByIdAndUpdate(leaveId, body, {
     new: true,
@@ -656,6 +617,82 @@ export const editLeaveController = asyncHandler(async (req, res) => {
   ]);
 
   const leaveUser = updatedLeave?.user as unknown as IUser;
+
+  if (!updatedLeave) {
+    res.status(500).json({
+      status: messageOptions.error,
+      message: "Failed to update leave request",
+    });
+    return;
+  }
+
+  if (leave.status === "approved") {
+    const month = updatedLeave.date.getMonth() + 1;
+    const year = updatedLeave.date.getFullYear();
+
+    const lastTotalLeaveDuration = calculateDuration(
+      leave.startTime,
+      leave.endTime
+    );
+    const currentTotalLeaveDuration = calculateDuration(
+      updatedLeave.startTime,
+      updatedLeave.endTime
+    );
+
+    const usageLeave = await MonthlyLeaveUsage.findOneAndUpdate(
+      { user: leaveUser._id, month, year },
+      {
+        $setOnInsert: {
+          totalLimitMinutes: leaveUser.totleLeaveDuration,
+          totalUsageMinutes: 0,
+        },
+      },
+      { new: true, upsert: true }
+    ).populate({
+      path: "user",
+      select: "-password -__v",
+    });
+
+    console.log("lastTotalLeaveDuration", lastTotalLeaveDuration);
+    console.log("currentTotalLeaveDuration", currentTotalLeaveDuration);
+
+    usageLeave.totalUsageMinutes -= lastTotalLeaveDuration;
+    usageLeave.totalUsageMinutes += currentTotalLeaveDuration;
+
+    const overUsageMinutes =
+      usageLeave.totalUsageMinutes - usageLeave.totalLimitMinutes;
+
+    console.log("overUsageMinutes", overUsageMinutes);
+    console.log("totalOverUsageMinutes", usageLeave.totalOverUsageMinutes);
+    console.log("totalUsageMinutes", usageLeave.totalUsageMinutes);
+
+    if (usageLeave.totalOverUsageMinutes !== overUsageMinutes) {
+      if (overUsageMinutes <= 0) {
+        usageLeave.totalOverUsageMinutes = 0;
+      } else {
+        usageLeave.totalOverUsageMinutes = overUsageMinutes;
+      }
+    }
+
+    const overtime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+      { user: leaveUser._id, month, year },
+      {
+        $setOnInsert: { totalOvertimeMinutes: 0 },
+      },
+      { new: true, upsert: true }
+    );
+
+    if (overtime.totalOverUsageMinutes !== overUsageMinutes) {
+      if (overUsageMinutes <= 0) {
+        overtime.totalOverUsageMinutes = 0;
+      } else {
+        overtime.totalOverUsageMinutes = overUsageMinutes;
+      }
+      await overtime.save();
+    }
+
+    await usageLeave.save();
+  }
 
   // Notify managers about the edit
   const managers = await UserModel.find({ role: "manager" }).select(
@@ -701,6 +738,5 @@ export const editLeaveController = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: messageOptions.success,
     updatedLeave,
-    usage,
   });
 });

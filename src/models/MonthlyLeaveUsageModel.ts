@@ -6,6 +6,7 @@ export interface IMonthlyLeaveUsage extends Document {
   month: number; // 1 to 12
   totalLimitMinutes: number; // المسموح بيه (مثلاً 240 دقيقة)
   totalUsageMinutes: number; // اللي استهلكه الموظف
+  totalOverUsageMinutes: number; // اللي استهلكه الموظف زيادة عن المسموح بيه
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -17,6 +18,7 @@ const MonthlyLeaveUsageSchema = new Schema<IMonthlyLeaveUsage>(
     month: { type: Number, required: true },
     totalLimitMinutes: { type: Number, required: true },
     totalUsageMinutes: { type: Number, required: true, default: 0 },
+    totalOverUsageMinutes: { type: Number, required: true, default: 0 },
   },
   {
     timestamps: true,

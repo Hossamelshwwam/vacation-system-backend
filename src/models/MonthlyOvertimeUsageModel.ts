@@ -6,6 +6,7 @@ export interface IMonthlyOvertimeUsage extends Document {
   year: number;
   month: number; // 1 to 12
   totalOvertimeMinutes: number;
+  totalOverUsageMinutes: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -16,6 +17,7 @@ const MonthlyOvertimeUsageSchema = new Schema<IMonthlyOvertimeUsage>(
     year: { type: Number, required: true },
     month: { type: Number, required: true },
     totalOvertimeMinutes: { type: Number, required: true, default: 0 },
+    totalOverUsageMinutes: { type: Number, required: true, default: 0 },
   },
   {
     timestamps: true,

@@ -5,7 +5,6 @@ import asyncHandler from "express-async-handler";
 import { messageOptions } from "../utils/globalVariables";
 import UserModel from "../models/UserModel";
 import { calculateDuration } from "../utils/timeLeaveManagment";
-import monthlyOvertimeUsageRoute from "../routes/monthlyOvertimeUsage.route";
 import MonthlyOvertimeUsageModel from "../models/MonthlyOvertimeUsageModel";
 
 // Create Overtime
@@ -96,9 +95,15 @@ const createOvertimeController = asyncHandler(async (req, res) => {
 
   const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
     { user: user?._id, month, year },
-    { $inc: { totalOvertimeMinutes: duration } },
+    {
+      $setOnInsert: { user: user?._id, month, year },
+    },
     { new: true, upsert: true }
   );
+
+  overtimeUsage.totalOvertimeMinutes += duration;
+
+  await overtimeUsage.save();
 
   const manager = await UserModel.find({ role: "manager" });
 
@@ -214,6 +219,13 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
     });
     return;
   }
+  const lastDate = new Date(overtime.date);
+  const lastMonth = lastDate.getMonth() + 1;
+  const lastYear = lastDate.getFullYear();
+
+  console.log("Las tDate:", lastDate);
+  console.log("Last Month:", lastMonth);
+  console.log("Last Year:", lastYear);
 
   // Check if the date is in the past
   if (date) {
@@ -285,57 +297,6 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
       newDuration.endTime
     );
 
-    const lastDate = new Date(overtime.date);
-    const lastMonth = lastDate.getMonth() + 1;
-    const lastYear = lastDate.getFullYear();
-
-    // Check if the month of the new date not equal the last date month
-    if (date) {
-      const newDate = new Date(date);
-      const newMonth = newDate.getMonth() + 1;
-      const newYear = newDate.getFullYear();
-      if (newDate.getMonth() + 1 !== lastDate.getMonth() + 1) {
-        const [lastUsageOvertime, newUsageOvertime] = await Promise.all([
-          MonthlyOvertimeUsageModel.findOneAndUpdate(
-            {
-              user: user?._id,
-              month: lastMonth,
-              year: lastYear,
-            },
-            {
-              $inc: { totalOvertimeMinutes: -oldDurationBalence },
-            }
-          ),
-          MonthlyOvertimeUsageModel.findOneAndUpdate(
-            {
-              user: user?._id,
-              month: newMonth,
-              year: newYear,
-            },
-            {
-              $inc: { totalOvertimeMinutes: newDurationBalence },
-            },
-            { new: true, upsert: true }
-          ),
-        ]);
-      }
-    } else {
-      if (newDurationBalence !== oldDurationBalence) {
-        const usageOvertime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
-          {
-            user: user?._id,
-            month: lastMonth,
-            year: lastYear,
-          },
-          {
-            $inc: {
-              totalOvertimeMinutes: newDurationBalence - oldDurationBalence,
-            },
-          }
-        );
-      }
-    }
-
     // Update overtime fields if provided
     if (date) overtime.date = date;
     if (startTime) overtime.startTime = startTime;
@@ -343,6 +304,83 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
     if (projectName) overtime.projectName = projectName;
 
     await overtime.save();
+
+    if (startTime || endTime || date) {
+      if (date && lastMonth !== new Date(date).getMonth() + 1) {
+        const newDate = new Date(date);
+        const newMonth = newDate.getMonth() + 1;
+        const newYear = newDate.getFullYear();
+        const usageOvertime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+          {
+            user: overtime.user._id,
+            month: newMonth,
+            year: newYear,
+          },
+          {
+            $setOnInsert: {
+              user: overtime.user._id,
+              month: newMonth,
+              year: newYear,
+            },
+          },
+          { new: true, upsert: true }
+        );
+
+        usageOvertime.totalOvertimeMinutes += newDurationBalence;
+
+        const oldUsageOvertime =
+          await MonthlyOvertimeUsageModel.findOneAndUpdate(
+            {
+              user: overtime.user._id,
+              month: lastMonth,
+              year: lastYear,
+            },
+            {
+              $setOnInsert: {
+                user: overtime.user._id,
+                month: lastMonth,
+                year: lastYear,
+              },
+            },
+            { new: true, upsert: true }
+          );
+
+        if (oldUsageOvertime.totalOvertimeMinutes > 0) {
+          oldUsageOvertime.totalOvertimeMinutes -= oldDurationBalence;
+          await oldUsageOvertime.save();
+        }
+
+        await usageOvertime.save();
+      } else {
+        const usageOvertime = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+          {
+            user: overtime.user._id,
+            month: lastMonth,
+            year: lastYear,
+          },
+          {
+            $setOnInsert: {
+              user: overtime.user._id,
+              month: lastMonth,
+              year: lastYear,
+            },
+          },
+          { new: true, upsert: true }
+        );
+
+        if (!usageOvertime) {
+          res.status(404).json({
+            status: messageOptions.error,
+            message: "Monthly Overtime Usage Not Found",
+          });
+          return;
+        }
+
+        usageOvertime.totalOvertimeMinutes -= oldDurationBalence;
+        usageOvertime.totalOvertimeMinutes += newDurationBalence;
+        await usageOvertime.save();
+      }
+    }
 
     res.status(200).json({
       status: messageOptions.success,
