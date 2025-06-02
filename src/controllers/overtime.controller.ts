@@ -223,10 +223,6 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
   const lastMonth = lastDate.getMonth() + 1;
   const lastYear = lastDate.getFullYear();
 
-  console.log("Las tDate:", lastDate);
-  console.log("Last Month:", lastMonth);
-  console.log("Last Year:", lastYear);
-
   // Check if the date is in the past
   if (date) {
     const now = new Date();

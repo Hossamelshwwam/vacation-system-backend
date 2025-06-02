@@ -653,18 +653,11 @@ export const editLeaveController = asyncHandler(async (req, res) => {
       select: "-password -__v",
     });
 
-    console.log("lastTotalLeaveDuration", lastTotalLeaveDuration);
-    console.log("currentTotalLeaveDuration", currentTotalLeaveDuration);
-
     usageLeave.totalUsageMinutes -= lastTotalLeaveDuration;
     usageLeave.totalUsageMinutes += currentTotalLeaveDuration;
 
     const overUsageMinutes =
       usageLeave.totalUsageMinutes - usageLeave.totalLimitMinutes;
-
-    console.log("overUsageMinutes", overUsageMinutes);
-    console.log("totalOverUsageMinutes", usageLeave.totalOverUsageMinutes);
-    console.log("totalUsageMinutes", usageLeave.totalUsageMinutes);
 
     if (usageLeave.totalOverUsageMinutes !== overUsageMinutes) {
       if (overUsageMinutes <= 0) {
