@@ -152,7 +152,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
 
   const query: any = {};
 
-  if (email) {
+  if (email && user?.role && ["admin", "manager"].includes(user?.role)) {
     const checkedUser = await UserModel.findOne({ email });
     if (!checkedUser) {
       res.status(404).json({

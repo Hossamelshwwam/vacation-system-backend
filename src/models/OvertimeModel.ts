@@ -6,6 +6,7 @@ export interface IOvertime extends Document {
   startTime: string;
   endTime: string;
   projectName: string;
+  overtimeCode: string;
   date: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,8 @@ const overtimeSchema = new Schema<IOvertime>(
       },
     },
     date: { type: Date, required: true },
+    overtimeCode: { type: String, unique: true },
+
     projectName: { type: String, required: true },
   },
   { timestamps: true }
