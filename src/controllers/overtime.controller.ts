@@ -148,7 +148,7 @@ const createOvertimeController = asyncHandler(async (req, res) => {
 const getAllOvertimeController = asyncHandler(async (req, res) => {
   const user = req.user;
 
-  const { email, overtimeCode, from, to } = req.query;
+  const { email, overtimeCode, from, to, days } = req.query;
 
   const query: any = {};
 
@@ -166,6 +166,12 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
 
   if (overtimeCode) {
     query.overtimeCode = overtimeCode;
+  }
+
+  if (days) {
+    const date = new Date();
+    date.setDate(date.getDate() - Number(days));
+    query.date = { $gte: date };
   }
 
   // Optional: from - to date range

@@ -25,6 +25,7 @@ export const createOvertimeSchema = Joi.object({
 });
 
 export const getOvertimesQuerySchema = Joi.object({
+  days: Joi.number().integer().min(1).max(365).optional(),
   email: Joi.string().email().optional(),
   overtimeCode: Joi.string().max(50).optional(),
   from: Joi.date().iso().optional(),
