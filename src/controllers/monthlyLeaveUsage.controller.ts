@@ -51,8 +51,6 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     return;
   }
 
-  console.log(query.user.totleLeaveDuration);
-
   const months = Array.from({ length: 12 }, (_, i) => ({
     updateOne: {
       filter: { user: query.user.id, year, month: i + 1 },
