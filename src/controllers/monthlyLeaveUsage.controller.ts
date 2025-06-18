@@ -46,7 +46,7 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
 
     res.status(200).json({
       status: messageOptions.success,
-      leaveUsage: { user, monthlyLeaveUsage },
+      leaveUsage: { user, monthlyLeaveUsage: [monthlyLeaveUsage] },
     });
     return;
   }
@@ -71,77 +71,22 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     await MonthlyLeaveUsageModel.bulkWrite(months);
   }
 
-  const usageList = await MonthlyLeaveUsageModel.find({
+  const monthlyLeaveUsage = await MonthlyLeaveUsageModel.find({
     ...query,
     user: query.user.id,
   })
-    .select("month year totalLimitMinutes totalUsageMinutes")
+    .select(
+      "month year totalLimitMinutes totalUsageMinutes totalOverUsageMinutes"
+    )
     .sort({ month: 1 })
     .lean();
 
+  console.log("Monthly Leave Usage:", monthlyLeaveUsage);
+
   res.status(200).json({
     status: messageOptions.success,
-    leaveUsage: { user, usageList },
+    leaveUsage: { user, monthlyLeaveUsage },
   });
 });
 
-// const updateMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
-//   const user = req.user;
-//   const { id } = req.params;
-//   const { totalLimitMinutes, totalUsageMinutes } = req.body;
-
-//   const monthlyLeaveUsage = await MonthlyLeaveUsageModel.findById(id);
-//   if (!monthlyLeaveUsage) {
-//     res.status(404).json({
-//       status: messageOptions.error,
-//       message: "Monthly leave usage not found",
-//     });
-//     return;
-//   }
-
-//   // Check if user has permission to update this record
-//   if (
-//     user?.role === "employee" &&
-//     monthlyLeaveUsage.user.toString() !== user.id
-//   ) {
-//     res.status(403).json({
-//       status: messageOptions.error,
-//       message: "You don't have permission to update this record",
-//     });
-//     return;
-//   }
-
-//   // Prepare update object based on user role
-//   const updateData: any = {};
-
-//   if (user?.role && ["admin", "manager"].includes(user?.role)) {
-//     if (totalLimitMinutes) {
-//       updateData.totalLimitMinutes = totalLimitMinutes;
-//     }
-//     if (totalUsageMinutes) {
-//       updateData.totalUsageMinutes = totalUsageMinutes;
-//     }
-//   } else {
-//     // For employees, they can only update totalUsageMinutes
-//     if (totalUsageMinutes) {
-//       updateData.totalUsageMinutes = totalUsageMinutes;
-//     }
-//   }
-
-//   const updatedMonthlyLeaveUsage =
-//     await MonthlyLeaveUsageModel.findByIdAndUpdate(
-//       id,
-//       { $set: updateData },
-//       { new: true }
-//     ).select("-__v");
-
-//   res.status(200).json({
-//     status: messageOptions.success,
-//     leaveUsage: updatedMonthlyLeaveUsage,
-//   });
-// });
-
-export {
-  getAllMonthlyLeaveUsageController,
-  //  updateMonthlyLeaveUsageController
-};
+export { getAllMonthlyLeaveUsageController };
