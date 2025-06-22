@@ -4,7 +4,7 @@ import { sendEmail } from "../utils/sendEmail";
 import asyncHandler from "express-async-handler";
 import { messageOptions } from "../utils/globalVariables";
 import UserModel from "../models/UserModel";
-import { calculateDuration } from "../utils/timeLeaveManagment";
+import { calculateDuration } from "../utils/timeManagment";
 import MonthlyOvertimeUsageModel from "../models/MonthlyOvertimeUsageModel";
 
 // Create Overtime

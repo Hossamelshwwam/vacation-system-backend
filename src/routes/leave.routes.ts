@@ -21,7 +21,7 @@ leavesRouter.use(protect);
 leavesRouter
   .post(
     "/leaves/create-leave",
-    authorize("manager", "employee"),
+    authorize("admin", "manager", "employee"),
     validate({ body: createLeaveSchema }),
     createLeaveController
   )

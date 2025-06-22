@@ -5,7 +5,7 @@ import LeaveModel from "../models/LeaveRequestModel";
 import { sendEmail } from "../utils/sendEmail";
 import generateUniqueCode from "../utils/generateUniqueCode";
 import getPriorityColor from "../utils/getPriorityColor";
-import { calculateDuration, timeToMinutes } from "../utils/timeLeaveManagment";
+import { calculateDuration, timeToMinutes } from "../utils/timeManagment";
 import MonthlyLeaveUsage from "../models/MonthlyLeaveUsageModel";
 import MonthlyOvertimeUsageModel from "../models/MonthlyOvertimeUsageModel";
 
@@ -30,7 +30,8 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   if (
     checkDate.getFullYear() < today.getFullYear() ||
     checkDate.getMonth() + 1 < today.getMonth() + 1 ||
-    checkDate.getDate() < today.getDate()
+    (checkDate.getMonth() + 1 === today.getMonth() + 1 &&
+      checkDate.getDate() < today.getDate())
   ) {
     res.status(400).json({
       status: messageOptions.error,
@@ -42,7 +43,7 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   // If the user is a manager, make sure they provide an email to create leave for another user
   let user;
 
-  if (creater?.role === "manager") {
+  if (creater?.role === "manager" || creater?.role === "admin") {
     if (!email) {
       res.status(403).json({
         status: messageOptions.error,
@@ -308,8 +309,12 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
       { new: true, upsert: true }
     );
 
+    console.log(overtime.totalOvertimeMinutes, overUsageMinutes);
+
     // Increase the total over usage minutes
     if (overtime.totalOvertimeMinutes !== overUsageMinutes) {
+      console.log("Overtime Usage updated");
+
       overtime.totalOverUsageMinutes = overUsageMinutes;
     }
 

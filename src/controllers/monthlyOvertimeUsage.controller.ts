@@ -14,7 +14,7 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
       if (email) {
         const employee = await UserModel.findOne({
           email,
-          status: "employee",
+          role: "employee",
         }).select("name email");
 
         if (!employee) {
