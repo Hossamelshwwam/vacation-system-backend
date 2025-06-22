@@ -20,10 +20,45 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
         return;
       }
       query.user = checkedUser;
+    } else if (month) {
+      const users = await UserModel.find({ role: "employee" });
+
+      const operations = users.map((u) => ({
+        updateOne: {
+          filter: { user: u._id, year, month },
+          update: {
+            $setOnInsert: {
+              user: u._id,
+              year,
+              month,
+              totalLimitMinutes: u.totleLeaveDuration,
+              totalUsageMinutes: 0,
+            },
+          },
+          upsert: true,
+        },
+      }));
+
+      if (operations.length > 0) {
+        await MonthlyLeaveUsageModel.bulkWrite(operations);
+      }
+
+      const monthlyLeaveUsage = await MonthlyLeaveUsageModel.find({
+        year,
+        month,
+      })
+        .populate("user", "-password")
+        .lean();
+
+      res.status(200).json({
+        status: messageOptions.success,
+        leaveUsage: { monthlyLeaveUsage },
+      });
+      return;
     } else {
       res.status(400).json({
         status: messageOptions.error,
-        message: "Email is required",
+        message: "Email or month is required",
       });
       return;
     }
@@ -46,7 +81,7 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
 
     res.status(200).json({
       status: messageOptions.success,
-      leaveUsage: { user, monthlyLeaveUsage: [monthlyLeaveUsage] },
+      leaveUsage: { monthlyLeaveUsage: [monthlyLeaveUsage] },
     });
     return;
   }
@@ -80,8 +115,6 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     )
     .sort({ month: 1 })
     .lean();
-
-  console.log("Monthly Leave Usage:", monthlyLeaveUsage);
 
   res.status(200).json({
     status: messageOptions.success,

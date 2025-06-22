@@ -162,7 +162,7 @@ export const getLeavesController = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { days, email, requestCode, from, to, priority } = req.query;
+  const { days, email, requestCode, from, to, priority, status } = req.query;
 
   const query: any = {};
 
@@ -194,6 +194,11 @@ export const getLeavesController = asyncHandler(async (req, res) => {
   // Filter by priority
   if (priority) {
     query.priority = priority;
+  }
+
+  // Filter by priority
+  if (status) {
+    query.status = status;
   }
 
   // Filter by days (e.g., ?days=30)

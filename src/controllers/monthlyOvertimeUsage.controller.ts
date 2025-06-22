@@ -12,9 +12,11 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
 
     if (user?.role && ["manager", "admin"].includes(user.role)) {
       if (email) {
-        const employee = await UserModel.findOne({ email }).select(
-          "name email"
-        );
+        const employee = await UserModel.findOne({
+          email,
+          status: "employee",
+        }).select("name email");
+
         if (!employee) {
           res.status(404).json({
             status: messageOptions.error,
@@ -36,7 +38,7 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
 
         res.status(200).json({
           status: messageOptions.success,
-          overtimeUsage,
+          overtimeUsage: [overtimeUsage],
         });
         return;
       } else {
@@ -76,22 +78,21 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
       }
     } else {
       query.user = user?._id;
-
-      const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
-        query,
-        {
-          $setOnInsert: {
-            ...query,
-          },
-        },
-        { new: true, upsert: true }
-      ).populate("user", "name email");
-
-      res.status(200).json({
-        status: messageOptions.success,
-        overtimeUsage,
-      });
-      return;
     }
+
+    const overtimeUsage = await MonthlyOvertimeUsageModel.findOneAndUpdate(
+      query,
+      {
+        $setOnInsert: {
+          ...query,
+        },
+      },
+      { new: true, upsert: true }
+    ).populate("user", "name email");
+
+    res.status(200).json({
+      status: messageOptions.success,
+      overtimeUsage: [overtimeUsage],
+    });
   }
 );

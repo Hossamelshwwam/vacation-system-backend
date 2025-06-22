@@ -27,6 +27,7 @@ export const getLeavesQuerySchema = Joi.object({
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),
   priority: Joi.string().valid("normal", "urgent", "critical").optional(),
+  status: Joi.string().valid("pending", "approved", "rejected").optional(),
 });
 
 export const editLeaveSchema = Joi.object({
