@@ -12,7 +12,7 @@ exports.getMonthlyOvertimeUsageController = (0, express_async_handler_1.default)
     const user = req.user;
     const { year, month, email } = req.query;
     let query = { year, month };
-    if (user?.role && ["manager", "admin"].includes(user.role)) {
+    if (user?.role && ["viewer", "admin"].includes(user.role)) {
         if (email) {
             const employee = await UserModel_1.default.findOne({
                 email,

@@ -26,8 +26,8 @@ const createOvertimeController = asyncHandler(async (req, res) => {
   }
 
   let user;
-  // if the user is admin or manager, they can make overtime request for another user
-  if (req.user?.role && ["admin", "manager"].includes(req.user?.role)) {
+  // if the user is admin or viewer, they can make overtime request for another user
+  if (req.user?.role && ["admin", "viewer"].includes(req.user?.role)) {
     // if the email is not provided, return error
     if (!email) {
       res.status(403).json({
@@ -50,7 +50,7 @@ const createOvertimeController = asyncHandler(async (req, res) => {
     }
     user = checkedUser;
   } else {
-    // if the user is not admin or manager, they can only make overtime request for themselves
+    // if the user is not admin or viewer, they can only make overtime request for themselves
     user = req.user;
   }
 
@@ -105,15 +105,15 @@ const createOvertimeController = asyncHandler(async (req, res) => {
 
   await overtimeUsage.save();
 
-  const manager = await UserModel.find({ role: "manager" });
+  const admins = await UserModel.find({ role: "admin" });
 
-  const managerEmails = manager.map((manager) => manager.email);
+  const adminEmails = admins.map((admin) => admin.email);
 
   // Send email notification to user
-  if (managerEmails.length > 0) {
+  if (adminEmails.length > 0) {
     try {
       await sendEmail({
-        to: managerEmails,
+        to: adminEmails,
         subject: `New Overtime Created For ${
           user?.name && user?.name[0].toUpperCase() + user?.name.slice(1)
         } (${overtimeCode}) `,
@@ -152,7 +152,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
 
   const query: any = {};
 
-  if (email && user?.role && ["admin", "manager"].includes(user?.role)) {
+  if (email && user?.role && ["admin", "viewer"].includes(user?.role)) {
     const checkedUser = await UserModel.findOne({ email });
     if (!checkedUser) {
       res.status(404).json({
@@ -184,7 +184,7 @@ const getAllOvertimeController = asyncHandler(async (req, res) => {
   let allovertimes;
 
   if (user?.role) {
-    if (["admin", "manager"].includes(user?.role)) {
+    if (["admin", "viewer"].includes(user?.role)) {
       allovertimes = await OvertimeModel.find(query, {})
         .populate("user", "name email")
         .populate("createdBy", "name email")
@@ -243,10 +243,10 @@ const updateOvertimeController = asyncHandler(async (req, res) => {
     }
   }
 
-  // Check if the user is admin or manager or the user is the same as the overtime user
+  // Check if the user is admin or viewer or the user is the same as the overtime user
   if (
     user?.role &&
-    (["admin", "manager"].includes(user?.role) ||
+    (["admin", "viewer"].includes(user?.role) ||
       overtime.user.toString() === user?._id.toString())
   ) {
     // Check for duplicate overtime (excluding the current overtime)

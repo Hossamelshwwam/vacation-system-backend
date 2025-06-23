@@ -28,8 +28,8 @@ const createOvertimeController = (0, express_async_handler_1.default)(async (req
         return;
     }
     let user;
-    // if the user is admin or manager, they can make overtime request for another user
-    if (req.user?.role && ["admin", "manager"].includes(req.user?.role)) {
+    // if the user is admin or viewer, they can make overtime request for another user
+    if (req.user?.role && ["admin", "viewer"].includes(req.user?.role)) {
         // if the email is not provided, return error
         if (!email) {
             res.status(403).json({
@@ -50,7 +50,7 @@ const createOvertimeController = (0, express_async_handler_1.default)(async (req
         user = checkedUser;
     }
     else {
-        // if the user is not admin or manager, they can only make overtime request for themselves
+        // if the user is not admin or viewer, they can only make overtime request for themselves
         user = req.user;
     }
     const createdBy = req.user?._id;
@@ -85,13 +85,13 @@ const createOvertimeController = (0, express_async_handler_1.default)(async (req
     }, { new: true, upsert: true });
     overtimeUsage.totalOvertimeMinutes += duration;
     await overtimeUsage.save();
-    const manager = await UserModel_1.default.find({ role: "manager" });
-    const managerEmails = manager.map((manager) => manager.email);
+    const admins = await UserModel_1.default.find({ role: "admin" });
+    const adminEmails = admins.map((admin) => admin.email);
     // Send email notification to user
-    if (managerEmails.length > 0) {
+    if (adminEmails.length > 0) {
         try {
             await (0, sendEmail_1.sendEmail)({
-                to: managerEmails,
+                to: adminEmails,
                 subject: `New Overtime Created For ${user?.name && user?.name[0].toUpperCase() + user?.name.slice(1)} (${overtimeCode}) `,
                 text: `
         <div style="font-family: Arial, sans-serif;">
@@ -123,7 +123,7 @@ const getAllOvertimeController = (0, express_async_handler_1.default)(async (req
     const user = req.user;
     const { email, overtimeCode, from, to, days } = req.query;
     const query = {};
-    if (email && user?.role && ["admin", "manager"].includes(user?.role)) {
+    if (email && user?.role && ["admin", "viewer"].includes(user?.role)) {
         const checkedUser = await UserModel_1.default.findOne({ email });
         if (!checkedUser) {
             res.status(404).json({
@@ -152,7 +152,7 @@ const getAllOvertimeController = (0, express_async_handler_1.default)(async (req
     }
     let allovertimes;
     if (user?.role) {
-        if (["admin", "manager"].includes(user?.role)) {
+        if (["admin", "viewer"].includes(user?.role)) {
             allovertimes = await OvertimeModel_1.default.find(query, {})
                 .populate("user", "name email")
                 .populate("createdBy", "name email")
@@ -206,9 +206,9 @@ const updateOvertimeController = (0, express_async_handler_1.default)(async (req
             return;
         }
     }
-    // Check if the user is admin or manager or the user is the same as the overtime user
+    // Check if the user is admin or viewer or the user is the same as the overtime user
     if (user?.role &&
-        (["admin", "manager"].includes(user?.role) ||
+        (["admin", "viewer"].includes(user?.role) ||
             overtime.user.toString() === user?._id.toString())) {
         // Check for duplicate overtime (excluding the current overtime)
         if (date || startTime || endTime) {

@@ -10,6 +10,16 @@ const generateToken = (args: object) => {
 
 export const registerController = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
+
+  // Only allow registration with @z-adv.com emails
+  if (!email.endsWith("@z-adv.com")) {
+    res.status(400).json({
+      status: messageOptions.error,
+      message: "Registration allowed only with @z-adv.com email addresses",
+    });
+    return;
+  }
+
   const existingUser = await UserModel.findOne({ email });
 
   if (existingUser) {

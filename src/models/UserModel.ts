@@ -4,7 +4,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: "employee" | "manager" | "admin";
+  role: "employee" | "viewer" | "admin";
   _id: string;
   totleLeaveDuration: number;
 }
@@ -16,7 +16,7 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["employee", "manager", "admin"],
+      enum: ["employee", "viewer", "admin"],
       default: "employee",
     },
     totleLeaveDuration: { type: Number, default: 240 },

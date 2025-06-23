@@ -10,6 +10,6 @@ const authValidation_1 = require("../validations/authValidation");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const userRouter = express_1.default.Router();
 userRouter
-    .get("/user/employees", authMiddleware_1.protect, (0, authMiddleware_1.authorize)("admin", "manager"), user_controller_1.getEmployeesController)
+    .get("/user/employees", authMiddleware_1.protect, (0, authMiddleware_1.authorize)("admin"), user_controller_1.getEmployeesController)
     .patch("/user/change-role", authMiddleware_1.protect, (0, authMiddleware_1.authorize)("admin"), (0, validateWithJoi_1.default)({ body: authValidation_1.changeRoleSchema }), user_controller_1.changeUserRoleController);
 exports.default = userRouter;

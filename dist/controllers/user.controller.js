@@ -35,7 +35,7 @@ exports.changeUserRoleController = (0, express_async_handler_1.default)(async (r
     // Find the user to update
     const userToUpdate = await UserModel_1.default.findOne({
         email,
-        role: ["employee", "manager"],
+        role: ["employee", "viewer"],
     });
     if (!userToUpdate) {
         res.status(404).json({

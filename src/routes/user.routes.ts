@@ -10,12 +10,7 @@ import { protect, authorize } from "../middleware/authMiddleware";
 const userRouter = express.Router();
 
 userRouter
-  .get(
-    "/user/employees",
-    protect,
-    authorize("admin", "manager"),
-    getEmployeesController
-  )
+  .get("/user/employees", protect, authorize("admin"), getEmployeesController)
   .patch(
     "/user/change-role",
     protect,

@@ -7,7 +7,7 @@ const userSchema = new mongoose_1.Schema({
     password: { type: String, required: true },
     role: {
         type: String,
-        enum: ["employee", "manager", "admin"],
+        enum: ["employee", "viewer", "admin"],
         default: "employee",
     },
     totleLeaveDuration: { type: Number, default: 240 },

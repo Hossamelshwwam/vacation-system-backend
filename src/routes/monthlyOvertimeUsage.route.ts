@@ -9,7 +9,7 @@ const monthlyOvertimeUsageRoute = express.Router();
 monthlyOvertimeUsageRoute.get(
   "/monthly-overtime-usage/get-monthly-overtime-usage",
   protect,
-  authorize("employee", "manager", "admin"),
+  authorize("employee", "viewer", "admin"),
   validate({ query: getMonthlyOvertimeUsageQuery }),
   getMonthlyOvertimeUsageController
 );

@@ -19,28 +19,28 @@ overtimeRouter
   .post(
     "/overtime/createOvertime",
     protect,
-    authorize("employee", "manager", "admin"),
+    authorize("employee", "admin"),
     validate({ body: createOvertimeSchema }),
     createOvertimeController
   )
   .patch(
     "/overtime/updateOvertime/:overtimeId",
     protect,
-    authorize("employee", "manager", "admin"),
+    authorize("employee", "admin"),
     validate({ body: updateOvertimeSchema }),
     updateOvertimeController
   )
   .get(
     "/overtime/getAllOvertime",
     protect,
-    authorize("employee", "manager", "admin"),
+    authorize("employee", "viewer", "admin"),
     validate({ query: getOvertimesQuerySchema }),
     getAllOvertimeController
   )
   .delete(
     "/overtime/deleteOvertime/:overtimeId",
     protect,
-    authorize("employee", "manager", "admin"),
+    authorize("admin"),
     deleteOvertimeController
   );
 

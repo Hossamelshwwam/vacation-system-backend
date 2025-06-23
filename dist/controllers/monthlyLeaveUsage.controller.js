@@ -12,7 +12,7 @@ const getAllMonthlyLeaveUsageController = (0, express_async_handler_1.default)(a
     const user = req.user;
     const { email, month, year } = req.query;
     let query = { year };
-    if (user?.role && ["manager", "admin"].includes(user?.role)) {
+    if (user?.role && ["viewer", "admin"].includes(user?.role)) {
         if (email) {
             const checkedUser = await UserModel_1.default.findOne({ email });
             if (!checkedUser) {

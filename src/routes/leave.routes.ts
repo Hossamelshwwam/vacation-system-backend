@@ -21,30 +21,31 @@ leavesRouter.use(protect);
 leavesRouter
   .post(
     "/leaves/create-leave",
-    authorize("admin", "manager", "employee"),
+    authorize("admin", "employee"),
     validate({ body: createLeaveSchema }),
     createLeaveController
   )
   .get(
     "/leaves/get-leaves",
     validate({ query: getLeavesQuerySchema }),
+    authorize("admin", "viewer", "employee"),
     getLeavesController
   )
   .patch(
     "/leaves/accept-leave/:id",
-    authorize("manager", "admin"),
+    authorize("admin"),
     validate({ body: actionLeaveSchema }),
     acceptLeaveController
   )
   .patch(
     "/leaves/reject-leave/:id",
-    authorize("manager", "admin"),
+    authorize("admin"),
     validate({ body: actionLeaveSchema }),
     rejectLeaveController
   )
   .patch(
     "/leaves/edit-leave/:id",
-    authorize("admin", "employee", "manager"),
+    authorize("admin", "employee"),
     validate({ body: editLeaveSchema }),
     editLeaveController
   );

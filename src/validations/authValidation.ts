@@ -13,5 +13,5 @@ export const loginSchema = Joi.object({
 
 export const changeRoleSchema = Joi.object({
   email: Joi.string().email().required(),
-  newRole: Joi.string().valid("employee", "manager").required(),
+  newRole: Joi.string().valid("employee", "viewer").required(),
 });

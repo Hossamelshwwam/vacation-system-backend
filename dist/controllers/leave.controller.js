@@ -38,9 +38,9 @@ exports.createLeaveController = (0, express_async_handler_1.default)(async (req,
         });
         return;
     }
-    // If the user is a manager, make sure they provide an email to create leave for another user
+    // If the user is an admin, make sure they provide an email to create leave for another user
     let user;
-    if (creater?.role === "manager" || creater?.role === "admin") {
+    if (creater?.role === "admin") {
         if (!email) {
             res.status(403).json({
                 status: globalVariables_1.messageOptions.error,
@@ -59,7 +59,7 @@ exports.createLeaveController = (0, express_async_handler_1.default)(async (req,
         }
     }
     else {
-        // If the user is not a manager, they can only create a request for themselves
+        // If the user is not an admin, they can only create a request for themselves
         user = creater;
     }
     // Check for duplicate leave requests with the same date and time
@@ -87,19 +87,19 @@ exports.createLeaveController = (0, express_async_handler_1.default)(async (req,
         priority: priority || "normal",
         requestCode,
     });
-    // Check if there are any managers to notify
-    const managers = await UserModel_1.default.find({ role: "manager" }).select("-password -__v");
-    if (managers.length === 0) {
+    // Check if there are any admins to notify
+    const admins = await UserModel_1.default.find({ role: "admin" }).select("-password -__v");
+    if (admins.length === 0) {
         res.status(404).json({
             status: globalVariables_1.messageOptions.error,
-            message: "there is no manager to accept the request",
+            message: "there is no admin to accept the request",
         });
         return;
     }
     try {
-        // Send email notification to all managers about the leave request
+        // Send email notification to all admins about the leave request
         await (0, sendEmail_1.sendEmail)({
-            to: managers.map((one) => one.email),
+            to: admins.map((one) => one.email),
             subject: `[${leave.priority.toUpperCase()}] Leave Request from ${user?.name} (${leave.requestCode})`,
             text: `
       <div style="font-family: Arial, sans-serif;">
@@ -144,8 +144,8 @@ exports.getLeavesController = (0, express_async_handler_1.default)(async (req, r
     if (user.role === "employee") {
         query.user = user._id;
     }
-    // Filter by email (allowed only for manager and admin)
-    if (email && (user.role === "manager" || user.role === "admin")) {
+    // Filter by email (allowed only for viewer and admin)
+    if (email && (user.role === "viewer" || user.role === "admin")) {
         const targetUser = await UserModel_1.default.findOne({ email }).select("_id");
         if (targetUser) {
             query.user = targetUser._id;
@@ -253,7 +253,6 @@ exports.acceptLeaveController = (0, express_async_handler_1.default)(async (req,
         const overtime = await MonthlyOvertimeUsageModel_1.default.findOneAndUpdate({ user: leaveUser._id, month, year }, {
             $setOnInsert: { totalOvertimeMinutes: 0 },
         }, { new: true, upsert: true });
-        console.log(overtime.totalOvertimeMinutes, overUsageMinutes);
         // Increase the total over usage minutes
         if (overtime.totalOvertimeMinutes !== overUsageMinutes) {
             console.log("Overtime Usage updated");
@@ -269,21 +268,25 @@ exports.acceptLeaveController = (0, express_async_handler_1.default)(async (req,
         });
         return;
     }
-    const admins = await UserModel_1.default.find({ role: "admin" }).select("-password -__v");
+    // const admins = await UserModel.find({ role: "admin" }).select(
+    //   "-password -__v"
+    // );
     try {
         //  Check if there are any admins && Send email to all admins
-        if (admins.length > 0) {
-            await (0, sendEmail_1.sendEmail)({
-                to: admins.map((one) => one.email),
-                subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
-                text: `
-          <div style="font-family: Arial, sans-serif;">
-            <p style="font-size: 16px;">The leave request of <strong>${leaveUser.name}</strong> has been approved by <strong>${user?.name}</strong>.</p>
-            <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
-          </div>
-        `,
-            });
-        }
+        // if (admins.length > 0) {
+        //   await sendEmail({
+        //     to: admins.map((one) => one.email),
+        //     subject: `${leaveUser.name}'s permission request was accepted by ${user?.name} (${leave.requestCode}).`,
+        //     text: `
+        //       <div style="font-family: Arial, sans-serif;">
+        //         <p style="font-size: 16px;">The leave request of <strong>${
+        //           leaveUser.name
+        //         }</strong> has been approved by <strong>${user?.name}</strong>.</p>
+        //         <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
+        //       </div>
+        //     `,
+        //   });
+        // }
         // Send email to the leave user
         if (leaveUser && leaveUser?.email) {
             await (0, sendEmail_1.sendEmail)({
@@ -558,12 +561,12 @@ exports.editLeaveController = (0, express_async_handler_1.default)(async (req, r
         }
         await usageLeave.save();
     }
-    // Notify managers about the edit
-    const managers = await UserModel_1.default.find({ role: "manager" }).select("-password -__v");
-    if (user?.role && user?.role !== "employee" && managers.length > 0) {
+    // Notify admins about the edit
+    const admins = await UserModel_1.default.find({ role: "admin" }).select("-password -__v");
+    if (user?.role && user?.role !== "employee" && admins.length > 0) {
         try {
             await (0, sendEmail_1.sendEmail)({
-                to: managers.map((one) => one.email),
+                to: admins.map((one) => one.email),
                 subject: `[${leave.priority.toUpperCase()}] ${leaveUser.name}'s Leave Request Edited (${updatedLeave?.requestCode})`,
                 text: `
           <div style="font-family: Arial, sans-serif;">

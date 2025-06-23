@@ -10,7 +10,7 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
 
     let query: any = { year, month };
 
-    if (user?.role && ["manager", "admin"].includes(user.role)) {
+    if (user?.role && ["viewer", "admin"].includes(user.role)) {
       if (email) {
         const employee = await UserModel.findOne({
           email,

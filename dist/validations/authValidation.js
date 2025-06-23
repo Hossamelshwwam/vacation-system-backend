@@ -16,5 +16,5 @@ exports.loginSchema = joi_1.default.object({
 });
 exports.changeRoleSchema = joi_1.default.object({
     email: joi_1.default.string().email().required(),
-    newRole: joi_1.default.string().valid("employee", "manager").required(),
+    newRole: joi_1.default.string().valid("employee", "viewer").required(),
 });

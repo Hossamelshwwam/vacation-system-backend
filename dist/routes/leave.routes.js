@@ -11,9 +11,9 @@ const LeavesValidation_1 = require("../validations/LeavesValidation");
 const leavesRouter = express_1.default.Router();
 leavesRouter.use(authMiddleware_1.protect);
 leavesRouter
-    .post("/leaves/create-leave", (0, authMiddleware_1.authorize)("admin", "manager", "employee"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.createLeaveSchema }), leave_controller_1.createLeaveController)
-    .get("/leaves/get-leaves", (0, validateWithJoi_1.default)({ query: LeavesValidation_1.getLeavesQuerySchema }), leave_controller_1.getLeavesController)
-    .patch("/leaves/accept-leave/:id", (0, authMiddleware_1.authorize)("manager", "admin"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.actionLeaveSchema }), leave_controller_1.acceptLeaveController)
-    .patch("/leaves/reject-leave/:id", (0, authMiddleware_1.authorize)("manager", "admin"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.actionLeaveSchema }), leave_controller_1.rejectLeaveController)
-    .patch("/leaves/edit-leave/:id", (0, authMiddleware_1.authorize)("admin", "employee", "manager"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.editLeaveSchema }), leave_controller_1.editLeaveController);
+    .post("/leaves/create-leave", (0, authMiddleware_1.authorize)("admin", "employee"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.createLeaveSchema }), leave_controller_1.createLeaveController)
+    .get("/leaves/get-leaves", (0, validateWithJoi_1.default)({ query: LeavesValidation_1.getLeavesQuerySchema }), (0, authMiddleware_1.authorize)("admin", "viewer", "employee"), leave_controller_1.getLeavesController)
+    .patch("/leaves/accept-leave/:id", (0, authMiddleware_1.authorize)("admin"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.actionLeaveSchema }), leave_controller_1.acceptLeaveController)
+    .patch("/leaves/reject-leave/:id", (0, authMiddleware_1.authorize)("admin"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.actionLeaveSchema }), leave_controller_1.rejectLeaveController)
+    .patch("/leaves/edit-leave/:id", (0, authMiddleware_1.authorize)("admin", "employee"), (0, validateWithJoi_1.default)({ body: LeavesValidation_1.editLeaveSchema }), leave_controller_1.editLeaveController);
 exports.default = leavesRouter;

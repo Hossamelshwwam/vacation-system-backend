@@ -9,7 +9,7 @@ const monthlyLeaveUsageRoute = express.Router();
 monthlyLeaveUsageRoute.get(
   "/monthly-leave-usage/get-monthly-leave-usage",
   protect,
-  authorize("admin", "employee", "manager"),
+  authorize("admin", "employee", "viewer"),
   validate({ query: getAllMonthlyLeaveUsageQuery }),
   getAllMonthlyLeaveUsageController
 );
