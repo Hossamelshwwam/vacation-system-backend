@@ -43,12 +43,30 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
         await MonthlyLeaveUsageModel.bulkWrite(operations);
       }
 
-      const monthlyLeaveUsage = await MonthlyLeaveUsageModel.find({
-        year,
-        month,
-      })
-        .populate("user", "-password")
-        .lean();
+      const monthlyLeaveUsage = await MonthlyLeaveUsageModel.aggregate([
+        {
+          $match: { year: Number(year), month: Number(month) },
+        },
+        {
+          $lookup: {
+            from: "users", // your users collection name (check if it's plural/lowercase)
+            localField: "user",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+        {
+          $unwind: "$user",
+        },
+        {
+          $match: { "user.role": "employee" },
+        },
+        {
+          $project: {
+            "user.password": 0, // exclude password
+          },
+        },
+      ]);
 
       res.status(200).json({
         status: messageOptions.success,
@@ -69,8 +87,6 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
   if (month) {
     query.month = month;
 
-    console.log(query.user);
-
     const monthlyLeaveUsage = await MonthlyLeaveUsageModel.findOneAndUpdate(
       { ...query, user: query.user.id },
       {
@@ -80,7 +96,9 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
         },
       },
       { new: true, upsert: true }
-    ).select("-user -__v");
+    )
+      .populate("user", "-password")
+      .lean();
 
     res.status(200).json({
       status: messageOptions.success,
@@ -113,15 +131,13 @@ const getAllMonthlyLeaveUsageController = asyncHandler(async (req, res) => {
     ...query,
     user: query.user.id,
   })
-    .select(
-      "month year totalLimitMinutes totalUsageMinutes totalOverUsageMinutes"
-    )
+    .populate("user", "-password")
     .sort({ month: 1 })
     .lean();
 
   res.status(200).json({
     status: messageOptions.success,
-    leaveUsage: { user, monthlyLeaveUsage },
+    leaveUsage: { monthlyLeaveUsage },
   });
 });
 

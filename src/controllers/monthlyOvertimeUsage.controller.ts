@@ -18,9 +18,9 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
         }).select("name email");
 
         if (!employee) {
-          res.status(404).json({
-            status: messageOptions.error,
-            message: "User not found",
+          res.status(200).json({
+            status: messageOptions.success,
+            overtimeUsage: [],
           });
           return;
         }
@@ -65,10 +65,20 @@ export const getMonthlyOvertimeUsageController = asyncHandler(
           await MonthlyOvertimeUsageModel.bulkWrite(bulkOps);
         }
 
-        const overtimeUsageList = await MonthlyOvertimeUsageModel.find({
-          year,
-          month,
-        }).populate("user", "name email");
+        const overtimeUsageList = await MonthlyOvertimeUsageModel.aggregate([
+          { $match: { year: Number(year), month: Number(month) } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "user",
+              foreignField: "_id",
+              as: "user",
+            },
+          },
+          { $unwind: "$user" },
+          { $match: { "user.role": "employee" } },
+          { $project: { "user.password": 0, "user.__v": 0 } },
+        ]);
 
         res.status(200).json({
           status: messageOptions.success,

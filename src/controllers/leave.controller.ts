@@ -27,17 +27,41 @@ export const createLeaveController = asyncHandler(async (req, res) => {
   const checkDate = new Date(date);
   const today = new Date();
 
-  if (
+  const isPastDate =
     checkDate.getFullYear() < today.getFullYear() ||
-    checkDate.getMonth() + 1 < today.getMonth() + 1 ||
-    (checkDate.getMonth() + 1 === today.getMonth() + 1 &&
-      checkDate.getDate() < today.getDate())
-  ) {
+    (checkDate.getFullYear() === today.getFullYear() &&
+      checkDate.getMonth() < today.getMonth()) ||
+    (checkDate.getFullYear() === today.getFullYear() &&
+      checkDate.getMonth() === today.getMonth() &&
+      checkDate.getDate() < today.getDate());
+
+  // Check If the Ihe Date Before Today
+  if (isPastDate) {
     res.status(400).json({
       status: messageOptions.error,
       message: "You Can't Request Leave For Date Before Today",
     });
     return;
+  }
+
+  const isToday =
+    checkDate.getFullYear() === today.getFullYear() &&
+    checkDate.getMonth() === today.getMonth() &&
+    checkDate.getDate() === today.getDate();
+
+  // Check If The Date is Today The Start Time Is Before Now
+  if (isToday) {
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+    const startMinutes = timeToMinutes(startTime);
+
+    if (startMinutes <= nowMinutes) {
+      res.status(400).json({
+        status: messageOptions.error,
+        message:
+          "Start time must be in the future if you're requesting for today",
+      });
+      return;
+    }
   }
 
   // If the user is an admin, make sure they provide an email to create leave for another user
@@ -53,11 +77,14 @@ export const createLeaveController = asyncHandler(async (req, res) => {
     }
 
     // Check if the email provided exists in the system
-    user = await UserModel.findOne({ email }, "-password -__v");
+    user = await UserModel.findOne(
+      { email, role: "employee" },
+      "-password -__v"
+    );
     if (!user) {
       res.status(403).json({
         status: messageOptions.error,
-        message: "Email not found",
+        message: "Employee's Email not found",
       });
       return;
     }
@@ -114,32 +141,32 @@ export const createLeaveController = asyncHandler(async (req, res) => {
 
   try {
     // Send email notification to all admins about the leave request
-    await sendEmail({
-      to: admins.map((one) => one.email),
-      subject: `[${leave.priority.toUpperCase()}] Leave Request from ${
-        user?.name
-      } (${leave.requestCode})`,
-      text: `
-      <div style="font-family: Arial, sans-serif;">
-        <h1 style="font-size: 20px; color: ${getPriorityColor(
-          leave.priority
-        )};">${user?.name}'s Leave Request (${leave.requestCode})</h1>
-        <div style="background-color: ${getPriorityColor(
-          leave.priority
-        )}20; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-          <strong>Priority:</strong> ${leave.priority.toUpperCase()}
-        </div>
-        <ul style="font-size:16px;">
-          <li>name : <strong>${user?.name}</strong></li>
-          <li>email : <strong>${user?.email}</strong></li>
-          <li>reason : <strong>${leave.reason}</strong></li>
-          <li>date : <strong>${leave.date.toDateString()}</strong></li>
-          <li>start time : <strong>${leave.startTime}</strong></li>
-          <li>end time : <strong>${leave.endTime}</strong></li>
-        </ul>
-      </div>
-      `,
-    });
+    // await sendEmail({
+    //   to: admins.map((one) => one.email),
+    //   subject: `[${leave.priority.toUpperCase()}] Leave Request from ${
+    //     user?.name
+    //   } (${leave.requestCode})`,
+    //   text: `
+    //   <div style="font-family: Arial, sans-serif;">
+    //     <h1 style="font-size: 20px; color: ${getPriorityColor(
+    //       leave.priority
+    //     )};">${user?.name}'s Leave Request (${leave.requestCode})</h1>
+    //     <div style="background-color: ${getPriorityColor(
+    //       leave.priority
+    //     )}20; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+    //       <strong>Priority:</strong> ${leave.priority.toUpperCase()}
+    //     </div>
+    //     <ul style="font-size:16px;">
+    //       <li>name : <strong>${user?.name}</strong></li>
+    //       <li>email : <strong>${user?.email}</strong></li>
+    //       <li>reason : <strong>${leave.reason}</strong></li>
+    //       <li>date : <strong>${leave.date.toDateString()}</strong></li>
+    //       <li>start time : <strong>${leave.startTime}</strong></li>
+    //       <li>end time : <strong>${leave.endTime}</strong></li>
+    //     </ul>
+    //   </div>
+    //   `,
+    // });
   } catch (error) {
     // If email fails, log the error but do not continue
     console.error("Error sending email:", error);
@@ -174,10 +201,11 @@ export const getLeavesController = asyncHandler(async (req, res) => {
 
   // Filter by email (allowed only for viewer and admin)
   if (email && (user.role === "viewer" || user.role === "admin")) {
-    const targetUser = await UserModel.findOne({ email }).select("_id");
-    if (targetUser) {
-      query.user = targetUser._id;
-    } else {
+    const targetUser = await UserModel.findOne({
+      email,
+      role: "employee",
+    }).select("_id");
+    if (!targetUser) {
       res.status(200).json({
         status: messageOptions.error,
         leaves: [],
@@ -185,6 +213,8 @@ export const getLeavesController = asyncHandler(async (req, res) => {
       });
       return;
     }
+
+    query.user = targetUser._id;
   }
 
   // Filter by requestCode (for all roles)
@@ -216,9 +246,43 @@ export const getLeavesController = asyncHandler(async (req, res) => {
     if (to) query.date.$lte = new Date(to as string);
   }
 
-  const leaves = await LeaveModel.find(query).populate([
-    { path: "user", select: "-password -__v" },
-    { path: "createdBy", select: "-password -__v" },
+  const leaves = await LeaveModel.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: "$user",
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "createdBy",
+        foreignField: "_id",
+        as: "createdBy",
+      },
+    },
+    {
+      $unwind: "$user",
+    },
+    {
+      $match: {
+        "user.role": "employee",
+      },
+    },
+    {
+      $project: {
+        "user.password": 0,
+        "user.__v": 0,
+        "createdBy.password": 0,
+        "createdBy.__v": 0,
+      },
+    },
   ]);
 
   res.status(200).json({
@@ -351,27 +415,27 @@ export const acceptLeaveController = asyncHandler(async (req, res) => {
 
     // Send email to the leave user
     if (leaveUser && leaveUser?.email) {
-      await sendEmail({
-        to: leaveUser.email,
-        subject: `Your permission request (${leave.requestCode}) has been approved`,
-        text: `
-            <div style="font-family: Arial, sans-serif;">  
-              <p style="font-size: 16px;">Dear ${leaveUser.name},</p>
-              <p style="font-size: 16px;">
-                Your leave request has been <strong>approved</strong>.
-              </p>
-              <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
-              <ul style="font-size:16px;">
-                <li>name : <strong>${leaveUser.name}</strong></li>
-                <li>email : <strong>${leaveUser.email}</strong></li>
-                <li>reason : <strong>${leave.reason}</strong></li>
-                <li>date : <strong>${leave.date.toDateString()}</strong></li>
-                <li>start time : <strong>${leave.startTime}</strong></li>
-                <li>end time : <strong>${leave.endTime}</strong></li>
-              </ul>
-            </div>
-          `,
-      });
+      // await sendEmail({
+      //   to: leaveUser.email,
+      //   subject: `Your permission request (${leave.requestCode}) has been approved`,
+      //   text: `
+      //       <div style="font-family: Arial, sans-serif;">
+      //         <p style="font-size: 16px;">Dear ${leaveUser.name},</p>
+      //         <p style="font-size: 16px;">
+      //           Your leave request has been <strong>approved</strong>.
+      //         </p>
+      //         <p><strong>Approval Date:</strong> ${acceptedLeave?.updatedAt.toDateString()}</p>
+      //         <ul style="font-size:16px;">
+      //           <li>name : <strong>${leaveUser.name}</strong></li>
+      //           <li>email : <strong>${leaveUser.email}</strong></li>
+      //           <li>reason : <strong>${leave.reason}</strong></li>
+      //           <li>date : <strong>${leave.date.toDateString()}</strong></li>
+      //           <li>start time : <strong>${leave.startTime}</strong></li>
+      //           <li>end time : <strong>${leave.endTime}</strong></li>
+      //         </ul>
+      //       </div>
+      //     `,
+      // });
     }
   } catch (error) {
     console.log(`Error : ${error}`);
