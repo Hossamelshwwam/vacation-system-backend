@@ -27,6 +27,7 @@ const validate = ({ body, query, params }) => (0, express_async_handler_1.defaul
             status: "error",
             message: err.details?.[0]?.message || err.message || "Validation error",
         });
+        return;
     }
 });
 exports.default = validate;

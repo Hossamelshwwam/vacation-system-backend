@@ -7,7 +7,7 @@ const errorHandler = (req, res, next) => {
 exports.errorHandler = errorHandler;
 const notFound = (req, res, next) => {
     res.status(404).json({
-        message: "URL Is Not Found",
+        message: "URL Is Not Foundss",
     });
 };
 exports.notFound = notFound;

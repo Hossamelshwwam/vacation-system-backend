@@ -7,6 +7,7 @@ exports.authorize = exports.protect = void 0;
 const express_async_handler_1 = __importDefault(require("express-async-handler"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const UserModel_1 = __importDefault(require("../models/UserModel"));
+const globalVariables_1 = require("../utils/globalVariables");
 exports.protect = (0, express_async_handler_1.default)(async (req, res, next) => {
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader) {
@@ -26,8 +27,12 @@ exports.protect = (0, express_async_handler_1.default)(async (req, res, next) =>
     }
     req.user = await UserModel_1.default.findById(decoded.id).select("-password -__v");
     if (!req.user) {
-        res.status(401);
-        throw new Error("Not authorized, user not found");
+        res
+            .status(401)
+            .json({
+            status: globalVariables_1.messageOptions.error,
+            message: "Not authorized, user not found",
+        });
     }
     next();
 });

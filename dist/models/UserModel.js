@@ -10,6 +10,7 @@ const userSchema = new mongoose_1.Schema({
         enum: ["employee", "manager", "admin"],
         default: "employee",
     },
+    totleLeaveDuration: { type: Number, default: 240 },
 }, { timestamps: true });
 const UserModel = (0, mongoose_1.model)("User", userSchema);
 exports.default = UserModel;

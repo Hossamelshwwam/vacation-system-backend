@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
-const leaveRequestSchema = new mongoose_1.Schema({
+const overtimeSchema = new mongoose_1.Schema({
     user: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     startTime: {
@@ -25,19 +25,8 @@ const leaveRequestSchema = new mongoose_1.Schema({
         },
     },
     date: { type: Date, required: true },
-    reason: { type: String, required: true },
-    priority: {
-        type: String,
-        enum: ["normal", "urgent", "critical"],
-        default: "normal",
-    },
-    status: {
-        type: String,
-        enum: ["pending", "approved", "rejected"],
-        default: "pending",
-    },
-    requestCode: { type: String, unique: true },
-    note: { type: String },
+    overtimeCode: { type: String, unique: true },
+    projectName: { type: String, required: true },
 }, { timestamps: true });
-const LeaveModel = (0, mongoose_1.model)("LeaveRequest", leaveRequestSchema);
-exports.default = LeaveModel;
+const OvertimeModel = (0, mongoose_1.model)("Overtime", overtimeSchema);
+exports.default = OvertimeModel;
