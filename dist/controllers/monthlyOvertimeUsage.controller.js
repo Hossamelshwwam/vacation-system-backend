@@ -19,9 +19,9 @@ exports.getMonthlyOvertimeUsageController = (0, express_async_handler_1.default)
                 role: "employee",
             }).select("name email");
             if (!employee) {
-                res.status(404).json({
-                    status: globalVariables_1.messageOptions.error,
-                    message: "User not found",
+                res.status(200).json({
+                    status: globalVariables_1.messageOptions.success,
+                    overtimeUsage: [],
                 });
                 return;
             }
@@ -56,10 +56,20 @@ exports.getMonthlyOvertimeUsageController = (0, express_async_handler_1.default)
             if (bulkOps.length > 0) {
                 await MonthlyOvertimeUsageModel_1.default.bulkWrite(bulkOps);
             }
-            const overtimeUsageList = await MonthlyOvertimeUsageModel_1.default.find({
-                year,
-                month,
-            }).populate("user", "name email");
+            const overtimeUsageList = await MonthlyOvertimeUsageModel_1.default.aggregate([
+                { $match: { year: Number(year), month: Number(month) } },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "user",
+                        foreignField: "_id",
+                        as: "user",
+                    },
+                },
+                { $unwind: "$user" },
+                { $match: { "user.role": "employee" } },
+                { $project: { "user.password": 0, "user.__v": 0 } },
+            ]);
             res.status(200).json({
                 status: globalVariables_1.messageOptions.success,
                 overtimeUsage: overtimeUsageList,

@@ -4,9 +4,9 @@ import validate from "../utils/validateWithJoi";
 import { getAllMonthlyLeaveUsageQuery } from "../validations/monthlyLeaveUsageValidation";
 import { getAllMonthlyLeaveUsageController } from "../controllers/monthlyLeaveUsage.controller";
 
-const monthlyLeaveUsageRoute = express.Router();
+const monthlyLeaveUsageRouter = express.Router();
 
-monthlyLeaveUsageRoute.get(
+monthlyLeaveUsageRouter.get(
   "/monthly-leave-usage/get-monthly-leave-usage",
   protect,
   authorize("admin", "employee", "viewer"),
@@ -14,4 +14,4 @@ monthlyLeaveUsageRoute.get(
   getAllMonthlyLeaveUsageController
 );
 
-export default monthlyLeaveUsageRoute;
+export default monthlyLeaveUsageRouter;

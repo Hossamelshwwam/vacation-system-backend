@@ -44,12 +44,30 @@ const getAllMonthlyLeaveUsageController = (0, express_async_handler_1.default)(a
             if (operations.length > 0) {
                 await MonthlyLeaveUsageModel_1.default.bulkWrite(operations);
             }
-            const monthlyLeaveUsage = await MonthlyLeaveUsageModel_1.default.find({
-                year,
-                month,
-            })
-                .populate("user", "-password")
-                .lean();
+            const monthlyLeaveUsage = await MonthlyLeaveUsageModel_1.default.aggregate([
+                {
+                    $match: { year: Number(year), month: Number(month) },
+                },
+                {
+                    $lookup: {
+                        from: "users", // your users collection name (check if it's plural/lowercase)
+                        localField: "user",
+                        foreignField: "_id",
+                        as: "user",
+                    },
+                },
+                {
+                    $unwind: "$user",
+                },
+                {
+                    $match: { "user.role": "employee" },
+                },
+                {
+                    $project: {
+                        "user.password": 0, // exclude password
+                    },
+                },
+            ]);
             res.status(200).json({
                 status: globalVariables_1.messageOptions.success,
                 leaveUsage: { monthlyLeaveUsage },
@@ -69,13 +87,14 @@ const getAllMonthlyLeaveUsageController = (0, express_async_handler_1.default)(a
     }
     if (month) {
         query.month = month;
-        console.log(query.user);
         const monthlyLeaveUsage = await MonthlyLeaveUsageModel_1.default.findOneAndUpdate({ ...query, user: query.user.id }, {
             $setOnInsert: {
                 totalLimitMinutes: query.user.totleLeaveDuration,
                 totalUsageMinutes: 0,
             },
-        }, { new: true, upsert: true }).select("-user -__v");
+        }, { new: true, upsert: true })
+            .populate("user", "-password")
+            .lean();
         res.status(200).json({
             status: globalVariables_1.messageOptions.success,
             leaveUsage: { monthlyLeaveUsage: [monthlyLeaveUsage] },
@@ -104,12 +123,12 @@ const getAllMonthlyLeaveUsageController = (0, express_async_handler_1.default)(a
         ...query,
         user: query.user.id,
     })
-        .select("month year totalLimitMinutes totalUsageMinutes totalOverUsageMinutes")
+        .populate("user", "-password")
         .sort({ month: 1 })
         .lean();
     res.status(200).json({
         status: globalVariables_1.messageOptions.success,
-        leaveUsage: { user, monthlyLeaveUsage },
+        leaveUsage: { monthlyLeaveUsage },
     });
 });
 exports.getAllMonthlyLeaveUsageController = getAllMonthlyLeaveUsageController;

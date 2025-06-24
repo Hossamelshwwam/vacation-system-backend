@@ -14,8 +14,9 @@ const user_routes_1 = __importDefault(require("../routes/user.routes"));
 const globalVariables_1 = require("../utils/globalVariables");
 const cors_1 = __importDefault(require("cors"));
 const overtime_routes_1 = __importDefault(require("../routes/overtime.routes"));
-const monthlyLeaveUsage_route_1 = __importDefault(require("../routes/monthlyLeaveUsage.route"));
-const monthlyOvertimeUsage_route_1 = __importDefault(require("../routes/monthlyOvertimeUsage.route"));
+const monthlyLeaveUsage_routes_1 = __importDefault(require("../routes/monthlyLeaveUsage.routes"));
+const monthlyOvertimeUsage_routes_1 = __importDefault(require("../routes/monthlyOvertimeUsage.routes"));
+const vacation_routes_1 = __importDefault(require("../routes/vacation.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -26,8 +27,9 @@ app.use("/api", [
     leave_routes_1.default,
     user_routes_1.default,
     overtime_routes_1.default,
-    monthlyLeaveUsage_route_1.default,
-    monthlyOvertimeUsage_route_1.default,
+    monthlyLeaveUsage_routes_1.default,
+    monthlyOvertimeUsage_routes_1.default,
+    vacation_routes_1.default,
 ]);
 app.get("/", (0, express_async_handler_1.default)(async (req, res, next) => {
     res.json({ message: "Welcome to api" });

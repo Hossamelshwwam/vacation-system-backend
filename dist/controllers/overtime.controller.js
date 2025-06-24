@@ -39,12 +39,15 @@ const createOvertimeController = (0, express_async_handler_1.default)(async (req
             return;
         }
         // find the user by email
-        const checkedUser = await UserModel_1.default.findOne({ email });
+        const checkedUser = await UserModel_1.default.findOne({ email, role: "employee" });
         // if the user is not found, return error
         if (!checkedUser) {
             res
                 .status(404)
-                .json({ status: globalVariables_1.messageOptions.error, message: "Email not found" });
+                .json({
+                status: globalVariables_1.messageOptions.error,
+                message: "Employee's Email not found",
+            });
             return;
         }
         user = checkedUser;

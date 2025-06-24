@@ -1,5 +1,11 @@
 import { Schema, model, Document } from "mongoose";
 
+interface IVacationBalance {
+  sick: number;
+  annual: number;
+  casual: number;
+}
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -7,7 +13,17 @@ export interface IUser extends Document {
   role: "employee" | "viewer" | "admin";
   _id: string;
   totleLeaveDuration: number;
+  vacationBalance: IVacationBalance;
 }
+
+const VacationBalanceSchema = new Schema<IVacationBalance>(
+  {
+    sick: { type: Number, default: 0 },
+    annual: { type: Number, default: 0 },
+    casual: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
 
 const userSchema = new Schema<IUser>(
   {
@@ -20,6 +36,7 @@ const userSchema = new Schema<IUser>(
       default: "employee",
     },
     totleLeaveDuration: { type: Number, default: 240 },
+    vacationBalance: { type: VacationBalanceSchema, required: true },
   },
   { timestamps: true }
 );

@@ -4,9 +4,9 @@ import validate from "../utils/validateWithJoi";
 import { getMonthlyOvertimeUsageQuery } from "../validations/monthlyOvertimeUsageValidtion";
 import { getMonthlyOvertimeUsageController } from "../controllers/monthlyOvertimeUsage.controller";
 
-const monthlyOvertimeUsageRoute = express.Router();
+const monthlyOvertimeUsageRouter = express.Router();
 
-monthlyOvertimeUsageRoute.get(
+monthlyOvertimeUsageRouter.get(
   "/monthly-overtime-usage/get-monthly-overtime-usage",
   protect,
   authorize("employee", "viewer", "admin"),
@@ -14,4 +14,4 @@ monthlyOvertimeUsageRoute.get(
   getMonthlyOvertimeUsageController
 );
 
-export default monthlyOvertimeUsageRoute;
+export default monthlyOvertimeUsageRouter;

@@ -9,8 +9,9 @@ import userRouter from "../routes/user.routes";
 import { messageOptions } from "../utils/globalVariables";
 import cors from "cors";
 import overtimeRouter from "../routes/overtime.routes";
-import monthlyLeaveUsageRoute from "../routes/monthlyLeaveUsage.route";
-import monthlyOvertimeUsageRoute from "../routes/monthlyOvertimeUsage.route";
+import monthlyLeaveUsageRouter from "../routes/monthlyLeaveUsage.routes";
+import monthlyOvertimeUsageRouter from "../routes/monthlyOvertimeUsage.routes";
+import vacationRouter from "../routes/vacation.routes";
 
 dotenv.config();
 
@@ -25,8 +26,9 @@ app.use("/api", [
   leavesRouter,
   userRouter,
   overtimeRouter,
-  monthlyLeaveUsageRoute,
-  monthlyOvertimeUsageRoute,
+  monthlyLeaveUsageRouter,
+  monthlyOvertimeUsageRouter,
+  vacationRouter,
 ]);
 
 app.get(
