@@ -16,15 +16,6 @@ export interface IUser extends Document {
   vacationBalance: IVacationBalance;
 }
 
-const VacationBalanceSchema = new Schema<IVacationBalance>(
-  {
-    sick: { type: Number, default: 0 },
-    annual: { type: Number, default: 0 },
-    casual: { type: Number, default: 0 },
-  },
-  { _id: false }
-);
-
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
@@ -36,7 +27,11 @@ const userSchema = new Schema<IUser>(
       default: "employee",
     },
     totleLeaveDuration: { type: Number, default: 240 },
-    vacationBalance: { type: VacationBalanceSchema, required: true },
+    vacationBalance: {
+      sick: { type: Number, default: 0 },
+      annual: { type: Number, default: 0 },
+      casual: { type: Number, default: 0 },
+    },
   },
   { timestamps: true }
 );
