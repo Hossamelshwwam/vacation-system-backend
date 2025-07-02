@@ -12,6 +12,7 @@ import overtimeRouter from "../routes/overtime.routes";
 import monthlyLeaveUsageRouter from "../routes/monthlyLeaveUsage.routes";
 import monthlyOvertimeUsageRouter from "../routes/monthlyOvertimeUsage.routes";
 import vacationRouter from "../routes/vacation.routes";
+import { monthlyVacationUsage } from "../routes/monthlyVacationUsage.routes";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use("/api", [
   monthlyLeaveUsageRouter,
   monthlyOvertimeUsageRouter,
   vacationRouter,
+  monthlyVacationUsage,
 ]);
 
 app.get(

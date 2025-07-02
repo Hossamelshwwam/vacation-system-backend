@@ -37,6 +37,6 @@ const VacationSchema = new Schema<IVacation>(
   { timestamps: true }
 );
 
-VacationSchema.index({ user: 1, date: 1 }, { unique: true }); // Prevent duplicate requests for same date
+VacationSchema.index({ user: 1, date: 1 }, { unique: true });
 
 export default mongoose.model<IVacation>("Vacation", VacationSchema);

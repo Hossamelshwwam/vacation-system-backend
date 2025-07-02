@@ -1,9 +1,10 @@
 import Joi from "joi";
 
 export const createVacationSchema = Joi.object({
-  date: Joi.date().required().messages({
+  date: Joi.date().min("now").required().messages({
     "any.required": "Date is required",
     "date.base": "Date must be a valid date",
+    "date.min": "Date cannot be in the past",
   }),
   vacationType: Joi.string()
     .valid("sick", "annual", "casual")
@@ -12,7 +13,9 @@ export const createVacationSchema = Joi.object({
       "any.required": "Vacation type is required",
       "any.only": "Vacation type must be one of sick, annual, or casual",
     }),
-  reason: Joi.string().allow("", null),
+  reason: Joi.string().required().messages({
+    "any.required": "Reason is required",
+  }),
   priority: Joi.string()
     .valid("normal", "urgent", "critical")
     .required()
@@ -33,12 +36,10 @@ export const createVacationSchema = Joi.object({
 });
 
 export const getVacationsSchema = Joi.object({
-  year: Joi.number().integer().required().messages({
-    "any.required": "Year is required",
+  year: Joi.number().integer().messages({
     "number.base": "Year must be a number",
   }),
-  month: Joi.number().integer().min(1).max(12).required().messages({
-    "any.required": "Month is required",
+  month: Joi.number().integer().min(1).max(12).messages({
     "number.base": "Month must be a number",
     "number.min": "Month must be between 1 and 12",
     "number.max": "Month must be between 1 and 12",

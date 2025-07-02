@@ -2,7 +2,8 @@ import express from "express";
 import {
   createVacationController,
   getVacationsController,
-  approveRejectVacationController,
+  approveVacationController,
+  rejectVacationController,
   editVacationDateController,
 } from "../controllers/vacation.controller";
 import { protect, authorize } from "../middleware/authMiddleware";
@@ -35,13 +36,22 @@ vacationRouter
     getVacationsController
   )
 
-  // Approve/Reject vacation
+  // Approve vacation
   .patch(
-    "/vacation/approve-and-reject/:id",
+    "/vacation/approve-vacation/:id",
     protect,
     authorize("admin"),
     validateWithJoi({ body: approveRejectVacationSchema }),
-    approveRejectVacationController
+    approveVacationController
+  )
+
+  // Approve vacation
+  .patch(
+    "/vacation/reject-vacation/:id",
+    protect,
+    authorize("admin"),
+    validateWithJoi({ body: approveRejectVacationSchema }),
+    rejectVacationController
   )
 
   // Edit vacation date
